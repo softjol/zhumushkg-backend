@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ResumeEntity } from '../database/entitis/resume.entity';
 import { Repository } from 'typeorm';
@@ -52,6 +56,68 @@ export class ResumeService {
         refId,
       );
       throw error;
+    }
+  }
+  async removeResume(id: number, refId: string): Promise<ResumeEntity> {
+    this.logger.debug(`[SERVICE] Attempting to remove resume ${id}`, refId);
+
+    // 1. Ищем запись перед удалением, чтобы убедиться, что она существует
+    const resume = await this.resumeRepository.findOne({ where: { id } });
+
+    if (!resume) {
+      this.logger.warn(`[SERVICE] Resume with id ${id} not found`, refId);
+      throw new NotFoundException(`Resume with ID ${id} not found`);
+    }
+
+    // 2. Удаляем (или используем softDelete, если нужно сохранить историю)
+    try {
+      await this.resumeRepository.remove(resume);
+      this.logger.debug(`[SERVICE] Resume ${id} successfully removed`, refId);
+
+      // Возвращаем удаленный объект (или статус), как ожидает контроллер
+      return resume;
+    } catch (error) {
+      this.logger.error(`[SERVICE] Failed to remove resume ${id}`, refId);
+      throw new InternalServerErrorException(
+        'Error occurred while deleting resume',
+      );
+    }
+  }
+
+  /**
+   * Обновление резюме
+   */
+  async updateResume(
+    id: number,
+    resumeData: CreateResumeDto,
+    refId: string,
+  ): Promise<ResumeEntity> {
+    this.logger.debug(`[SERVICE] Attempting to update resume ${id}`, refId);
+
+    // 1. Проверяем существование
+    const resume = await this.resumeRepository.findOne({ where: { id } });
+
+    if (!resume) {
+      this.logger.warn(
+        `[SERVICE] Resume with id ${id} not found for update`,
+        refId,
+      );
+      throw new NotFoundException(`Resume with ID ${id} not found`);
+    }
+
+    // 2. Слияние данных и сохранение
+    // Используем preload или Object.assign для обновления полей
+    const updatedResume = Object.assign(resume, resumeData);
+
+    try {
+      const savedResume = await this.resumeRepository.save(updatedResume);
+      this.logger.debug(`[SERVICE] Resume ${id} successfully updated`, refId);
+      return savedResume;
+    } catch (error) {
+      this.logger.error(`[SERVICE] Failed to update resume ${id}`, refId);
+      throw new InternalServerErrorException(
+        'Error occurred while updating resume',
+      );
     }
   }
 }
