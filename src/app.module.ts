@@ -6,9 +6,17 @@ import { AuthModule } from './module/auth/auth.module';
 import { UserModule } from './module/user/user.module';
 import { RoleModule } from './module/role/role.module';
 import { ResumeModule } from './module/resume/resume.module';
+import { VacancyModule } from './module/vacancy/vacancy.module';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, UserModule, RoleModule, ResumeModule],
+  imports: [
+    DatabaseModule,
+    AuthModule,
+    UserModule,
+    RoleModule,
+    ResumeModule,
+    VacancyModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
