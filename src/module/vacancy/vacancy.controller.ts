@@ -10,8 +10,8 @@ import {
 } from '@nestjs/common';
 import { VacancyService } from './vacancy.service';
 import { CreateVacancyDto } from './dto/vacancy.dto';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
-import { RefId } from 'src/decorators/ref.decorator';
+import { CustomLogger } from '../../helpers/logger/logger.service';
+import { RefId } from '../../decorators/ref.decorator';
 
 @Controller('vacancy')
 export class VacancyController {

@@ -5,7 +5,7 @@ import { CreateUserDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import * as nodemailer from 'nodemailer';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '../../helpers/logger/logger.service';
 import { UserEntity } from '../database/entitis/user.entity';
 import { RoleEntity } from '../database/entitis/role.entity';
 

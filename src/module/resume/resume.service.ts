@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { ResumeEntity } from '../database/entitis/resume.entity';
 import { Repository } from 'typeorm';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateResumeDto } from './dto/resume.dto';
 
 @Injectable()

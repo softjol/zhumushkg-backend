@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '../../helpers/logger/logger.service';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { UserEntity } from '../database/entitis/user.entity';

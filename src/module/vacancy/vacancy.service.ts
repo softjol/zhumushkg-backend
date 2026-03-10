@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { VacancyEntity } from '../database/entitis/vacancy.enity';
 import { Repository } from 'typeorm';
 import { CreateVacancyDto } from './dto/vacancy.dto';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '../../helpers/logger/logger.service';
 
 @Injectable()
 export class VacancyService {

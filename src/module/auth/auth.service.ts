@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { UserService } from '../user/user.service';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateUserDto } from '../user/dto/user.dto';
 import { UserEntity } from '../database/entitis/user.entity';
 import { JwtService } from '@nestjs/jwt';

@@ -8,9 +8,9 @@ import {
   Post,
 } from '@nestjs/common';
 import { ResumeService } from './resume.service';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateResumeDto } from './dto/resume.dto';
-import { RefId } from 'src/decorators/ref.decorator';
+import { RefId } from '../../decorators/ref.decorator';
 import { ref } from 'process';
 
 @Controller('resume')

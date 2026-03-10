@@ -8,9 +8,9 @@ import {
   Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateUserDto } from '../user/dto/user.dto';
-import { RefId } from 'src/decorators/ref.decorator';
+import { RefId } from '../../decorators/ref.decorator';
 import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
