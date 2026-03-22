@@ -9,6 +9,7 @@ import {
 import { RoleEntity } from './role.entity';
 import { EmailVerificationEntity } from './emailVerif.entity';
 import { ResumeEntity } from './resume.entity';
+import { ApplicationEntity } from './Application.entity';
 
 @Entity('user')
 export class UserEntity {
@@ -38,6 +39,9 @@ export class UserEntity {
 
   @OneToMany(() => ResumeEntity, (resume) => resume.user)
   resumes!: ResumeEntity[];
+
+  @OneToMany(() => ApplicationEntity, (application) => application.candidate)
+  applications: ApplicationEntity[];
 
   @Column({ type: 'varchar', nullable: true })
   emailConfirmationToken!: string | null;
