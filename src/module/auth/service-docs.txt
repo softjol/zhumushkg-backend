@@ -1,0 +1,9 @@
+**Работает:**
+- Регистрация
+- Логин + выдача JWT
+- Получение профиля
+
+**Не работает / проблемы:**
+- `logger.debug('[SUCCESS]')` в `login` — никогда не выполнится (стоит после `return`)
+- `console.log(id)` в `getProfile` — забытый мусор
+- `findByConfirmationToken` и `save` — просто прокси, смысл выносить в AuthService минимален

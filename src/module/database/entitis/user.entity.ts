@@ -45,4 +45,7 @@ export class UserEntity {
 
   @Column({ type: 'varchar', nullable: true })
   emailConfirmationToken!: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  fcmToken!: string | null;
 }
