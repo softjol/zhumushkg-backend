@@ -1,29 +1,20 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNumber } from 'class-validator';
-import { ApplicationStatus } from '../../database/entitis/application.entity';
+import { IsInt, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
+import { ApplicationStatus } from 'src/module/database/entitis/Application.entity';
 
 export class CreateApplicationDto {
-  @ApiProperty({
-    description: 'ID соискателя',
-    example: 1,
-  })
-  @IsNumber()
-  applicantId: number;
+  @IsInt()
+  @IsNotEmpty()
+  vacancy_id: number;
 
-  @ApiProperty({
-    description: 'ID вакансии',
-    example: 1,
-  })
-  @IsNumber()
-  vacancyId: number;
-}
+  @IsInt()
+  @IsNotEmpty()
+  candidate_id: number;
 
-export class UpdateApplicationStatusDto {
-  @ApiProperty({
-    description: 'Статус отклика',
-    example: ApplicationStatus.ACCEPTED,
-    enum: ApplicationStatus,
-  })
+  @IsInt()
+  @IsNotEmpty()
+  resume_id: number;
+
   @IsEnum(ApplicationStatus)
-  status: ApplicationStatus;
+  @IsOptional() // Опционально, так как в базе есть дефолт 'NEW'
+  status?: ApplicationStatus;
 }

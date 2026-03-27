@@ -6,7 +6,9 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
+import { ApplicationEntity } from './Application.entity';
 
 @Entity('vacancy')
 export class VacancyEntity {
@@ -60,6 +62,9 @@ export class VacancyEntity {
 
   @Column()
   company: string;
+
+  @OneToMany(() => ApplicationEntity, (application) => application.candidate)
+  applications: ApplicationEntity[];
 
   @CreateDateColumn()
   createdAt: Date;

@@ -6,8 +6,10 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { UserEntity } from './user.entity';
+import { ApplicationEntity } from './Application.entity';
 
 @Entity('resumes')
 export class ResumeEntity {
@@ -20,6 +22,9 @@ export class ResumeEntity {
   @ManyToOne(() => UserEntity, (user) => user.resumes)
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
+
+  @OneToMany(() => ApplicationEntity, (application) => application.candidate)
+  applications: ApplicationEntity[];
 
   @Column({ type: 'text', nullable: true })
   description: string;
