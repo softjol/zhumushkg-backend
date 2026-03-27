@@ -7,6 +7,7 @@ import { UserModule } from './module/user/user.module';
 import { RoleModule } from './module/role/role.module';
 import { ResumeModule } from './module/resume/resume.module';
 import { VacancyModule } from './module/vacancy/vacancy.module';
+import { ApplicationModule } from './module/application/application.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { VacancyModule } from './module/vacancy/vacancy.module';
     RoleModule,
     ResumeModule,
     VacancyModule,
+    ApplicationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

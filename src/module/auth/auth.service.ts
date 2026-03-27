@@ -95,20 +95,18 @@ export class AuthService {
         throw new HttpException('Неверный пароль', HttpStatus.UNAUTHORIZED);
       }
 
-      if (user && passwordEqual) {
-        const payload = {
-          email: user.email,
-          id: user.id,
-          role: user.role.role,
-          emailConfirmed: user.emailConfirmed,
-          full_name: user.fullName,
-        };
-        return {
-          access_token: this.jwtService.sign(payload),
-        };
-      }
+      const payload = {
+        email: user.email,
+        id: user.id,
+        role: user.role.role,
+        emailConfirmed: user.emailConfirmed,
+        full_name: user.fullName,
+      };
+
       this.logger.debug(`[SERVICE] login SUCCESS`, refId);
-      return user;
+      return {
+        access_token: this.jwtService.sign(payload),
+      };
     } catch (error) {
       this.logger.error(
         `[ERROR] login with email: ${JSON.stringify(error)}`,
