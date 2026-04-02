@@ -1,0 +1,7 @@
+VacancyService — CRUD для вакансий, 5 методов:
+
+createVacancy — создаёт вакансию из DTO и сохраняет
+getAllVacancy — возвращает все вакансии
+getByIdVacancy — ищет вакансию по id
+removeVacancy — удаляет вакансию, если не найдена — возвращает 0
+updateVacancy — обновляет вакансию через repository.update, потом заново делает getByIdVacancy чтобы вернуть обновлённый объект

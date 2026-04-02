@@ -1,0 +1,13 @@
+UserService — работа с пользователями, 5 методов:
+
+findOneByEmail — ищет юзера по email, подгружает связь role
+createUser — создаёт юзера:
+
+Хэширует пароль через bcrypt
+Ищет роль USER, если нет — создаёт её
+Генерирует токен подтверждения email через randomBytes
+Сохраняет юзера и отправляет письмо
+
+sendConfirmationEmail — отправляет письмо с ссылкой подтверждения через nodemailer/Gmail
+findOneById — ищет юзера по id с ролью
+findByConfirmationToken — ищет юзера по токену подтверждения

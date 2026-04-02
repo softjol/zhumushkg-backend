@@ -123,7 +123,9 @@ export class AuthService {
         };
       }
       this.logger.debug(`[SERVICE] login SUCCESS`, refId);
-      return user;
+      return {
+        access_token: this.jwtService.sign(payload),
+      };
     } catch (error) {
       this.logger.error(
         `[ERROR] login with phoneNumber: ${JSON.stringify(error)}`,
