@@ -5,7 +5,6 @@ import {
   Get,
   Param,
   Post,
-  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
@@ -30,7 +29,7 @@ export class AuthController {
       const user = await this.authService.register(userData, refId);
       if (user) {
         this.logger.debug(
-          `[CONTROLLER] register SUCCESS: ${user.email}`,
+          `[CONTROLLER] register SUCCESS: ${user.phoneNumber}`,
           refId,
         );
       }
@@ -55,20 +54,33 @@ export class AuthController {
     }
   }
 
-  @Get('confirm-email')
-  async confirmEmail(@Query('token') token: string, @RefId() refId: string) {
-    const user = await this.authService.findByConfirmationToken(token, refId);
+  @Post('confirm-phone')
+  async confirmPhone(
+    @Body() body: { smsCode: string },
+    @RefId() refId: string,
+  ) {
+    this.logger.debug(`[CONTROLLER] confirm phone`, refId);
+    try {
+      const user = await this.authService.findByConfirmationToken(
+        body.smsCode,
+        refId,
+      );
 
-    if (!user) {
-      throw new BadRequestException('Неверный токен подтверждения');
+      if (!user) {
+        throw new BadRequestException('Неверный код подтверждения');
+      }
+
+      user.phoneConfirmed = true;
+      user.smsCode = null;
+
+      await this.authService.save(user);
+
+      this.logger.debug(`[CONTROLLER] confirm phone SUCCESS`, refId);
+      return { message: 'Номер телефона успешно подтвержден' };
+    } catch (error) {
+      this.logger.error(`[CONTROLLER] confirm phone failed: ${error}`, refId);
+      throw error;
     }
-
-    user.emailConfirmed = true;
-    user.emailConfirmationToken = null;
-
-    await this.authService.save(user);
-
-    return { message: 'Email успешно подтверждён' };
   }
 
   @Post('login')

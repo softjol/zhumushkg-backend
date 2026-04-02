@@ -17,35 +17,40 @@ export class AuthService {
 
   async register(userData: CreateUserDto, refId: string) {
     this.logger.debug(
-      `[SERVICE] Registering user with email: ${JSON.stringify(userData.email)}`,
+      `[SERVICE] Registering user with phoneNumber: ${JSON.stringify(userData.phoneNumber)}`,
       refId,
     );
 
     try {
-      const exstingUser = await this.userService.findOneByEmail(
-        userData.email,
+      // Проверка совпадения пароля и подтверждения пароля
+      if (userData.password !== userData.confirm_password) {
+        throw new HttpException(`Пароли не совпадают`, HttpStatus.BAD_REQUEST);
+      }
+
+      const existingUser = await this.userService.findOneByPhoneNumber(
+        userData.phoneNumber,
         refId,
       );
-      if (exstingUser) {
+      if (existingUser) {
         this.logger.warn(
-          `[WARN] User with email ${JSON.stringify(userData.email)}`,
+          `[WARN] User with phoneNumber ${JSON.stringify(userData.phoneNumber)}`,
           refId,
         );
         throw new HttpException(
-          `Пользователь с таким email уже существует`,
+          `Пользователь с таким номером телефона уже существует`,
           HttpStatus.BAD_REQUEST,
         );
       }
 
       const user = await this.userService.createUser(userData, refId);
       this.logger.debug(
-        `[SUCCESS] User registered with email: ${JSON.stringify(userData.email)}`,
+        `[SUCCESS] User registered with phoneNumber: ${JSON.stringify(userData.phoneNumber)}`,
         refId,
       );
       return user;
     } catch (error) {
       this.logger.error(
-        `[ERROR] Registering user with email: ${JSON.stringify(error)}`,
+        `[ERROR] Registering user with phoneNumber: ${JSON.stringify(error)}`,
         refId,
       );
       throw error;
@@ -68,8 +73,8 @@ export class AuthService {
     }
   }
 
-  async findByConfirmationToken(token: string, refId: string) {
-    return this.userService.findByConfirmationToken(token, refId);
+  async findByConfirmationToken(smsCode: string, refId: string) {
+    return this.userService.findByPhoneConfirmationToken(smsCode, refId);
   }
 
   async save(user: UserEntity) {
@@ -78,11 +83,14 @@ export class AuthService {
 
   async login(login: LoginDto, refId: string) {
     this.logger.debug(
-      `[SERVICE] login with email: ${JSON.stringify(login.email)}`,
+      `[SERVICE] login with phoneNumber: ${JSON.stringify(login.phoneNumber)}`,
       refId,
     );
     try {
-      const user = await this.userService.findOneByEmail(login.email, refId);
+      const user = await this.userService.findOneByPhoneNumber(
+        login.phoneNumber,
+        refId,
+      );
       if (!user) {
         throw new HttpException('Пользователь не найден', HttpStatus.NOT_FOUND);
       }
@@ -95,12 +103,19 @@ export class AuthService {
         throw new HttpException('Неверный пароль', HttpStatus.UNAUTHORIZED);
       }
 
+      if (!user.phoneConfirmed) {
+        throw new HttpException(
+          'Номер телефона не подтвержден',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
       if (user && passwordEqual) {
         const payload = {
-          email: user.email,
+          phoneNumber: user.phoneNumber,
           id: user.id,
           role: user.role.role,
-          emailConfirmed: user.emailConfirmed,
+          phoneConfirmed: user.phoneConfirmed,
           full_name: user.fullName,
         };
         return {
@@ -111,7 +126,7 @@ export class AuthService {
       return user;
     } catch (error) {
       this.logger.error(
-        `[ERROR] login with email: ${JSON.stringify(error)}`,
+        `[ERROR] login with phoneNumber: ${JSON.stringify(error)}`,
         refId,
       );
       throw error;

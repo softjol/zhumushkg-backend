@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength } from 'class-validator';
+import { IsString } from 'class-validator';
 
-export class LoginDto {
+export class ConfirmPhoneDto {
   @ApiProperty({
     example: '+996700123456',
     description: 'Номер телефона пользователя',
@@ -10,11 +10,10 @@ export class LoginDto {
   phoneNumber!: string;
 
   @ApiProperty({
-    example: 'password123',
-    description: 'Пароль пользователя',
-    minLength: 6,
+    example: '123456',
+    description: 'Код подтверждения (OTP)',
   })
   @IsString()
-  @MinLength(6)
-  password!: string;
+  smsCode!: string;
 }
+

@@ -5,10 +5,12 @@ import { AuthService } from './auth.service';
 import { UserModule } from '../user/user.module';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
   imports: [
     UserModule,
+    TelegramModule,
     ConfigModule.forRoot({ isGlobal: true }),
     JwtModule.register({
       secret: 'SECRET_KEY',

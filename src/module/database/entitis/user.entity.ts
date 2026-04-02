@@ -22,17 +22,17 @@ export class UserEntity {
   @Column({ type: 'varchar', nullable: true })
   email!: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  phoneNumber!: string;
+
   @Column({ type: 'boolean', default: false })
-  emailConfirmed!: boolean;
+  phoneConfirmed!: boolean;
+
+  @Column({ type: 'varchar', nullable: true })
+  smsCode!: string | null;
 
   @Column({ type: 'varchar' })
   password!: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  confirmPassword!: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  phoneNumber!: string;
 
   @ManyToOne(() => RoleEntity, (role) => role.user)
   role!: RoleEntity;
@@ -44,5 +44,5 @@ export class UserEntity {
   applications: ApplicationEntity[];
 
   @Column({ type: 'varchar', nullable: true })
-  emailConfirmationToken!: string | null;
+  phoneConfirmationToken!: string | null;
 }

@@ -8,6 +8,7 @@ import { RoleModule } from './module/role/role.module';
 import { ResumeModule } from './module/resume/resume.module';
 import { VacancyModule } from './module/vacancy/vacancy.module';
 import { ApplicationModule } from './module/application/application.module';
+import { TelegramModule } from './module/telegram/telegram.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ApplicationModule } from './module/application/application.module';
     ResumeModule,
     VacancyModule,
     ApplicationModule,
+    TelegramModule,
   ],
   controllers: [AppController],
   providers: [AppService],
