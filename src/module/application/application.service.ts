@@ -31,8 +31,8 @@ export class ApplicationService {
     try {
       const existing = await this.applicationRepository.findOne({
         where: {
-          vacancyId: dto.vacancy_id,
-          applicantId: dto.candidate_id,
+          vacancy_id: dto.vacancy_id,
+          candidate_id: dto.candidate_id,
         },
       });
 
@@ -41,9 +41,10 @@ export class ApplicationService {
       }
 
       const application = this.applicationRepository.create({
-        vacancyId: dto.vacancy_id,
-        applicantId: dto.candidate_id,
-        status: dto.status ?? ApplicationStatus.PENDING,
+        vacancy_id: dto.vacancy_id,
+        candidate_id: dto.candidate_id,
+        resume_id: dto.resume_id,
+        status: dto.status ?? ApplicationStatus.NEW,
       });
       return await this.applicationRepository.save(application);
     } catch (error) {}
@@ -53,7 +54,7 @@ export class ApplicationService {
     this.logger.debug(`[SERVICE] Creating application for vacancy`, refId);
     try {
       return await this.applicationRepository.find({
-        relations: ['vacancy', 'applicant'],
+        relations: ['vacancy', 'candidate', 'resume'],
       });
     } catch (error) {}
   }
@@ -63,7 +64,7 @@ export class ApplicationService {
     try {
       const application = await this.applicationRepository.findOne({
         where: { id },
-        relations: ['vacancy', 'applicant'],
+        relations: ['vacancy', 'candidate', 'resume'],
       });
 
       return application;

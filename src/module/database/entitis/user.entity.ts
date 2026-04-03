@@ -40,7 +40,7 @@ export class UserEntity {
   @OneToMany(() => ResumeEntity, (resume) => resume.user)
   resumes!: ResumeEntity[];
 
-  @OneToMany(() => ApplicationEntity, (application) => application.applicant)
+  @OneToMany(() => ApplicationEntity, (application) => application.candidate)
   applications: ApplicationEntity[];
 
   @Column({ type: 'varchar', nullable: true })

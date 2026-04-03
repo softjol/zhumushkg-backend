@@ -3,46 +3,65 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  UpdateDateColumn,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { UserEntity } from './user.entity';
 import { VacancyEntity } from './vacancy.enity';
+import { UserEntity } from './user.entity';
+import { ResumeEntity } from './resume.entity';
 
 export enum ApplicationStatus {
-  PENDING = 'pending',
-  ACCEPTED = 'accepted',
-  REJECTED = 'rejected',
-  OFFER = 'offer',
-  HIRED = 'hired',
+  NEW = 'NEW',
+  REVIEWING = 'REVIEWING',
+  INTERVIEW = 'INTERVIEW',
+  OFFER = 'OFFER',
+  REJECTED = 'REJECTED',
+  HIRED = 'HIRED',
 }
 
-@Entity('application')
+@Entity('applications')
 export class ApplicationEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => UserEntity)
-  @JoinColumn({ name: 'applicant_id' })
-  applicant: UserEntity;
+  @Column()
+  vacancy_id: number;
 
-  @Column({ name: 'applicant_id' })
-  applicantId: number;
-
-  @ManyToOne(() => VacancyEntity)
+  @ManyToOne(() => VacancyEntity, (vacancy) => vacancy.applications, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'vacancy_id' })
   vacancy: VacancyEntity;
 
-  @Column({ name: 'vacancy_id' })
-  vacancyId: number;
+  @Column()
+  candidate_id: number;
+
+  @ManyToOne(() => UserEntity, (user) => user.applications, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'candidate_id' })
+  candidate: UserEntity;
+
+  @Column()
+  resume_id: number;
+
+  @ManyToOne(() => ResumeEntity, (resume) => resume.applications, {
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'resume_id' })
+  resume: ResumeEntity;
 
   @Column({
     type: 'enum',
     enum: ApplicationStatus,
-    default: ApplicationStatus.PENDING,
+    default: ApplicationStatus.NEW,
   })
   status: ApplicationStatus;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn({ type: 'timestamp' })
+  created_at: Date;
+
+  @UpdateDateColumn({ type: 'timestamp' })
+  updated_at: Date;
 }
