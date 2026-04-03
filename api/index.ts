@@ -3,8 +3,8 @@ import 'dotenv/config';
 import express from 'express';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from '../src/app.module';
+import { createSwaggerDocument, setupSwaggerDocs } from '../src/swagger-setup';
 
 type Req = Parameters<express.Express>[0];
 type Res = Parameters<express.Express>[1];
@@ -23,15 +23,8 @@ async function getServer(): Promise<express.Express> {
     credentials: true,
   });
 
-  const config = new DocumentBuilder()
-    .setTitle('Жумушkg API')
-    .setDescription('API для управления Telegram-ботом')
-    .setVersion('1.0')
-    .addTag('Telegram')
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  const document = createSwaggerDocument(app);
+  setupSwaggerDocs(app, document);
 
   await app.init();
   server = expressApp;
