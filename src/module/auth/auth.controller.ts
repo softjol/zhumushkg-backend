@@ -6,12 +6,14 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateUserDto } from '../user/dto/user.dto';
 import { RefId } from '../../decorators/ref.decorator';
 import { LoginDto } from './dto/login.dto';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -19,6 +21,7 @@ export class AuthController {
     private readonly logger: CustomLogger,
   ) {}
 
+  @ApiOperation({ summary: 'Регистрация (телефон нужно подтвердить отдельно)' })
   @Post('register')
   async register(@Body() userData: CreateUserDto, @RefId() refId: string) {
     this.logger.debug(
@@ -83,6 +86,9 @@ export class AuthController {
     }
   }
 
+  @ApiOperation({
+    summary: 'Вход — получить JWT для Swagger (Authorize) после confirm-phone',
+  })
   @Post('login')
   async login(@Body() login: LoginDto, @RefId() refId: string) {
     this.logger.debug(`[CONTROLLER] login`, refId);
