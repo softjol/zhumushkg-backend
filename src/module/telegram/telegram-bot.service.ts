@@ -16,6 +16,14 @@ export class TelegramBotService implements OnModuleInit {
       return;
     }
 
+    // Long polling несовместим с serverless (Vercel): ломает/вешает инвокацию.
+    if (
+      process.env.VERCEL === '1' &&
+      process.env.TELEGRAM_ENABLE_POLLING !== 'true'
+    ) {
+      return;
+    }
+
     this.bot = new TelegramBot(token, { polling: true });
 
     this.setupStartHandler();

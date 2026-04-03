@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+import 'dotenv/config';
 import express from 'express';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
@@ -37,7 +39,12 @@ async function getServer(): Promise<express.Express> {
 }
 
 export default async function handler(req: Req, res: Res) {
-  const app = await getServer();
-  return app(req, res);
+  try {
+    const app = await getServer();
+    return app(req, res);
+  } catch (err) {
+    console.error('[vercel] handler error', err);
+    throw err;
+  }
 }
 

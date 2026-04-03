@@ -13,7 +13,6 @@ import { TypeOrmModule } from "@nestjs/typeorm";
       ssl: { rejectUnauthorized: false },
       autoLoadEntities: true,
       synchronize: true,
-      entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     }),],
   controllers: [DatabaseController],
   providers: [DatabaseService, CustomLogger],
