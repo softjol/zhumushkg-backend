@@ -1,4 +1,5 @@
 {
+  "buildCommand": "true",
   "rewrites": [
     {
       "source": "/(.*)",
