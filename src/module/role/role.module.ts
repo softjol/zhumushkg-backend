@@ -4,10 +4,9 @@ import { RoleController } from "./role.controller";
 import { RoleService } from "./role.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { RoleEntity } from "../database/entitis/role.entity";
-import { AuthModule } from "../auth/auth.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RoleEntity]), AuthModule],
+  imports: [TypeOrmModule.forFeature([RoleEntity])],
   controllers: [RoleController],
   providers: [RoleService, CustomLogger],
   exports: [RoleService],

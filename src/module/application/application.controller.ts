@@ -6,18 +6,15 @@ import {
   Patch,
   Param,
   Delete,
+  Logger,
   ParseIntPipe,
-  UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApplicationService } from './application.service';
 import { RefId } from 'src/decorators/ref.decorator';
 import { ApplicationStatus } from '../database/entitis/application.entity';
 import { CreateApplicationDto } from './dto/application.dto';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@ApiTags('Вакансии и резюме')
 @Controller('applications')
 export class ApplicationController {
   constructor(
@@ -25,9 +22,6 @@ export class ApplicationController {
     private readonly logger: CustomLogger,
   ) {}
 
-  @ApiBearerAuth('access-token')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Подать отклик на вакансию (только после входа)' })
   @Post()
   async create(@Body() dto: CreateApplicationDto, @RefId() refId: string) {
     this.logger.debug(`[CONTROLLER] Create application`, refId);

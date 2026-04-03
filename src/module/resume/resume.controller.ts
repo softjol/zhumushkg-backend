@@ -7,9 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ResumeService } from './resume.service';
 import { ResumeResponseService } from './resume-response/resume-response.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
@@ -19,9 +17,7 @@ import {
   CreateResumeResponseDto,
   UpdateResumeResponseStatusDto,
 } from './dto/resume-response.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@ApiTags('Вакансии и резюме')
 @Controller('resume')
 export class ResumeController {
   constructor(
@@ -32,9 +28,6 @@ export class ResumeController {
 
   // ─── RESUME CRUD ───────────────────────────────────
 
-  @ApiBearerAuth('access-token')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Создать резюме (только после входа)' })
   @Post()
   async createResume(
     @Body() resumeData: CreateResumeDto,
@@ -127,9 +120,6 @@ export class ResumeController {
 
   //RESUME RESPONSE
 
-  @ApiBearerAuth('access-token')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Создать отклик на резюме (только после входа)' })
   @Post(':id/response')
   async createResponse(
     @Param('id', ParseIntPipe) resumeId: number,

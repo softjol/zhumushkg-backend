@@ -8,13 +8,11 @@ import { UserEntity } from '../database/entitis/user.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { NotificationModule } from '../notification/notificant.module';
-import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ResumeEntity, ResumeResponseEntity, UserEntity]),
     NotificationModule,
-    AuthModule,
   ],
   controllers: [ResumeController],
   providers: [ResumeService, ResumeResponseService, CustomLogger],
