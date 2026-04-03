@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApplicationService } from './application.service';
 import { RefId } from 'src/decorators/ref.decorator';
-import { ApplicationStatus } from '../database/entitis/Application.entity';
+import { ApplicationStatus } from '../database/entitis/application.entity';
 import { CreateApplicationDto } from './dto/application.dto';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
 

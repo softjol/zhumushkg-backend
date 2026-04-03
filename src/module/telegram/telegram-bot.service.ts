@@ -1,16 +1,12 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
-import { UserService } from '../user/user.service';
 import { TelegramLinkService } from './telegram-link.service';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit {
   private bot: TelegramBot | null = null;
 
-  constructor(
-    private readonly userService: UserService,
-    private readonly telegramLinkService: TelegramLinkService,
-  ) {}
+  constructor(private readonly telegramLinkService: TelegramLinkService) {}
 
   onModuleInit() {
     const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -59,9 +55,6 @@ export class TelegramBotService implements OnModuleInit {
 
       // Всегда сохраняем связь phone ↔ chatId (даже если пользователя ещё нет)
       await this.telegramLinkService.upsertLink(normalizedPhone, chatId);
-
-      // Если пользователь уже существует — проставляем telegramChatId в user
-      await this.userService.linkTelegramChatId(normalizedPhone, chatId);
 
       await this.bot?.sendMessage(
         chatId,

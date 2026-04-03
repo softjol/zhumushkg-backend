@@ -9,7 +9,7 @@ import {
 import { RoleEntity } from './role.entity';
 import { EmailVerificationEntity } from './emailVerif.entity';
 import { ResumeEntity } from './resume.entity';
-import { ApplicationEntity } from './Application.entity';
+import { ApplicationEntity } from './application.entity';
 
 @Entity('user')
 export class UserEntity {
@@ -40,7 +40,7 @@ export class UserEntity {
   @OneToMany(() => ResumeEntity, (resume) => resume.user)
   resumes!: ResumeEntity[];
 
-  @OneToMany(() => ApplicationEntity, (application) => application.candidate)
+  @OneToMany(() => ApplicationEntity, (application) => application.applicant)
   applications: ApplicationEntity[];
 
   @Column({ type: 'varchar', nullable: true })

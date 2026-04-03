@@ -110,18 +110,13 @@ export class AuthService {
         );
       }
 
-      if (user && passwordEqual) {
-        const payload = {
-          phoneNumber: user.phoneNumber,
-          id: user.id,
-          role: user.role.role,
-          phoneConfirmed: user.phoneConfirmed,
-          full_name: user.fullName,
-        };
-        return {
-          access_token: this.jwtService.sign(payload),
-        };
-      }
+      const payload = {
+        phoneNumber: user.phoneNumber,
+        id: user.id,
+        role: user.role.role,
+        phoneConfirmed: user.phoneConfirmed,
+        full_name: user.fullName,
+      };
       this.logger.debug(`[SERVICE] login SUCCESS`, refId);
       return {
         access_token: this.jwtService.sign(payload),

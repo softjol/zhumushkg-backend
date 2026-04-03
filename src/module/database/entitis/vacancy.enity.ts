@@ -8,7 +8,7 @@ import {
   JoinColumn,
   OneToMany,
 } from 'typeorm';
-import { ApplicationEntity } from './Application.entity';
+import { ApplicationEntity } from './application.entity';
 
 @Entity('vacancy')
 export class VacancyEntity {
@@ -63,7 +63,7 @@ export class VacancyEntity {
   @Column()
   company: string;
 
-  @OneToMany(() => ApplicationEntity, (application) => application.candidate)
+  @OneToMany(() => ApplicationEntity, (application) => application.vacancy)
   applications: ApplicationEntity[];
 
   @CreateDateColumn()

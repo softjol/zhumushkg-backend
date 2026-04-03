@@ -1,5 +1,5 @@
 import { IsInt, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
-import { ApplicationStatus } from 'src/module/database/entitis/Application.entity';
+import { ApplicationStatus } from 'src/module/database/entitis/application.entity';
 
 export class CreateApplicationDto {
   @IsInt()

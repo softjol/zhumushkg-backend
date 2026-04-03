@@ -10,7 +10,7 @@ import { Repository } from 'typeorm';
 import {
   ApplicationEntity,
   ApplicationStatus,
-} from '../database/entitis/Application.entity';
+} from '../database/entitis/application.entity';
 import { CreateApplicationDto } from './dto/application.dto';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
 
@@ -31,8 +31,8 @@ export class ApplicationService {
     try {
       const existing = await this.applicationRepository.findOne({
         where: {
-          vacancy_id: dto.vacancy_id,
-          candidate_id: dto.candidate_id,
+          vacancyId: dto.vacancy_id,
+          applicantId: dto.candidate_id,
         },
       });
 
@@ -40,7 +40,11 @@ export class ApplicationService {
         throw new ConflictException('You have already applied to this vacancy');
       }
 
-      const application = this.applicationRepository.create(dto);
+      const application = this.applicationRepository.create({
+        vacancyId: dto.vacancy_id,
+        applicantId: dto.candidate_id,
+        status: dto.status ?? ApplicationStatus.PENDING,
+      });
       return await this.applicationRepository.save(application);
     } catch (error) {}
   }
@@ -49,7 +53,7 @@ export class ApplicationService {
     this.logger.debug(`[SERVICE] Creating application for vacancy`, refId);
     try {
       return await this.applicationRepository.find({
-        relations: ['vacancy', 'candidate', 'resume'],
+        relations: ['vacancy', 'applicant'],
       });
     } catch (error) {}
   }
@@ -59,7 +63,7 @@ export class ApplicationService {
     try {
       const application = await this.applicationRepository.findOne({
         where: { id },
-        relations: ['vacancy', 'candidate', 'resume'],
+        relations: ['vacancy', 'applicant'],
       });
 
       return application;
