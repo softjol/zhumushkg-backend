@@ -6,7 +6,7 @@ const SWAGGER_UI_DIST = 'https://unpkg.com/swagger-ui-dist@5.11.0';
 
 export function buildSwaggerConfig() {
   return new DocumentBuilder()
-    .setTitle('Жумушkg API')
+    .setTitle('Жумушkg')
     .setDescription('API для приложения Жумуш')
     .setVersion('1.0')
     .addTag('Telegram')
