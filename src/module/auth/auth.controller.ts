@@ -6,12 +6,14 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateUserDto } from '../user/dto/user.dto';
 import { RefId } from '../../decorators/ref.decorator';
 import { LoginDto } from './dto/login.dto';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -83,6 +85,7 @@ export class AuthController {
     }
   }
 
+  @ApiOperation({ summary: 'Вход — access_token для Swagger Authorize' })
   @Post('login')
   async login(@Body() login: LoginDto, @RefId() refId: string) {
     this.logger.debug(`[CONTROLLER] login`, refId);

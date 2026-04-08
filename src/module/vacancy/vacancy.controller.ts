@@ -6,13 +6,16 @@ import {
   Param,
   Patch,
   Post,
-  Put,
+  UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { VacancyService } from './vacancy.service';
 import { CreateVacancyDto } from './dto/vacancy.dto';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { RefId } from '../../decorators/ref.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+@ApiTags('Вакансии и резюме')
 @Controller('vacancy')
 export class VacancyController {
   constructor(
@@ -20,6 +23,9 @@ export class VacancyController {
     private readonly logger: CustomLogger,
   ) {}
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Создать вакансию (JWT после login)' })
   @Post()
   async createVacancy(
     @Body() vacancyData: CreateVacancyDto,
