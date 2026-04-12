@@ -1,99 +1,123 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# E2E Тесты для zhumushkg-backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Структура файлов
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+```
+test/
+├── jest-e2e.json              # Конфиг Jest для e2e тестов
+├── auth.e2e-spec.ts           # Тесты авторизации
+├── application.e2e-spec.ts   # Тесты заявок
+├── resume.e2e-spec.ts         # Тесты резюме
+└── vacancy.e2e-spec.ts        # Тесты вакансий
 ```
 
-## Compile and run the project
+## Установка зависимостей
 
-```bash
-# development
-$ npm run start
+Все нужные пакеты уже есть в package.json:
 
-# watch mode
-$ npm run start:dev
+- `@nestjs/testing`
+- `supertest`
+- `@types/supertest`
 
-# production mode
-$ npm run start:prod
+## Настройка тестовой базы данных
+
+### 1. Создай `.env.test` в корне проекта:
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+DB_NAME=zhumush_test      # отдельная БД для тестов!
+JWT_SECRET=test_secret
 ```
 
-## Run tests
+### 2. Создай тестовую БД в PostgreSQL:
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```sql
+CREATE DATABASE zhumush_test;
 ```
 
-## Deployment
+### 3. Обнови `jest-e2e.json` — добавь загрузку .env.test:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Или передавай через команду запуска:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g mau
-$ mau deploy
+```
+cross-env NODE_ENV=test jest --config ./test/jest-e2e.json
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 4. В `DatabaseModule` добавь поддержку тестового окружения:
 
-## Resources
+```typescript
+// database.module.ts
+synchronize: process.env.NODE_ENV === 'test', // авто-миграции только в тестах
+dropSchema: process.env.NODE_ENV === 'test',  // чистить БД перед каждым запуском
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## Запуск тестов
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+# Все e2e тесты
+npm run test:e2e
 
-## Support
+# Один файл
+npx jest --config ./test/jest-e2e.json test/auth.e2e-spec.ts
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# С выводом всех логов
+npx jest --config ./test/jest-e2e.json --verbose
+```
 
-## Stay in touch
+## Что тестируется
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### auth.e2e-spec.ts
 
-## License
+| Метод | Роут                | Тест                                                  |
+| ----- | ------------------- | ----------------------------------------------------- |
+| POST  | /auth/register      | успешная регистрация, дублирование, невалидные данные |
+| POST  | /auth/login         | успешный вход, неверный пароль, пустое тело           |
+| POST  | /auth/confirm-phone | неверный код, отсутствие кода                         |
+| GET   | /auth/profile/:id   | профиль по id, несуществующий id                      |
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### application.e2e-spec.ts
+
+| Метод  | Роут                     | Тест                                  |
+| ------ | ------------------------ | ------------------------------------- |
+| POST   | /applications            | создание, пустое тело                 |
+| GET    | /applications            | список                                |
+| GET    | /applications/:id        | по id, несуществующий id              |
+| PATCH  | /applications/:id/status | обновление статуса, невалидный статус |
+| DELETE | /applications/:id        | удаление, несуществующий id           |
+
+### resume.e2e-spec.ts
+
+| Метод  | Роут        | Тест                              |
+| ------ | ----------- | --------------------------------- |
+| POST   | /resume     | создание, пустое тело, без токена |
+| GET    | /resume     | список                            |
+| GET    | /resume/:id | по id, несуществующий id          |
+| PATCH  | /resume/:id | обновление                        |
+| DELETE | /resume/:id | удаление                          |
+
+### vacancy.e2e-spec.ts
+
+| Метод  | Роут         | Тест                                |
+| ------ | ------------ | ----------------------------------- |
+| POST   | /vacancy     | создание, пустое тело, без токена   |
+| GET    | /vacancy     | список, проверка созданной вакансии |
+| GET    | /vacancy/:id | по id, несуществующий id            |
+| PATCH  | /vacancy/:id | обновление                          |
+| DELETE | /vacancy/:id | удаление                            |
+
+## Важные замечания
+
+1. **Подстрой поля DTO** — если у тебя другие поля в `CreateApplicationDto`,
+   `ResumeDto`, `VacancyDto` — обнови `testApplication`, `testResume`, `testVacancy`.
+
+2. **ApplicationStatus enum** — в `application.e2e-spec.ts` статус `'REVIEWED'`
+   замени на реальное значение из твоего `ApplicationStatus`.
+
+3. **Роуты** — если контроллеры используют другой префикс (например `/resumes`
+   вместо `/resume`) — поправь в тестах.
+
+4. **JWT Guard** — если роуты защищены Guard-ами, убедись что токен
+   передаётся корректно. Тесты уже добавляют `.set('Authorization', \`Bearer \${authToken}\`)`.

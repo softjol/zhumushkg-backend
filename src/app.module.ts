@@ -9,9 +9,11 @@ import { ResumeModule } from './module/resume/resume.module';
 import { VacancyModule } from './module/vacancy/vacancy.module';
 import { ApplicationModule } from './module/application/application.module';
 import { TelegramModule } from './module/telegram/telegram.module';
+import { LoggerModule } from './helpers/logger/logger.module';
 
 @Module({
   imports: [
+    LoggerModule,
     DatabaseModule,
     AuthModule,
     UserModule,

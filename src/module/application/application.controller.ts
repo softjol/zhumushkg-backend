@@ -42,13 +42,14 @@ export class ApplicationController {
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: ApplicationStatus,
+    @Body('hrId') hrId: number,
     @RefId() refId: string,
   ) {
     this.logger.debug(
       `[CONTROLLER] Update status for application ${id}`,
       refId,
     );
-    return await this.applicationService.updateStatus(id, status, refId);
+    return await this.applicationService.updateStatus(id, status, hrId, refId);
   }
 
   @Delete(':id')
