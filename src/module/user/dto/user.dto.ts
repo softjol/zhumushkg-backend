@@ -1,18 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
-import { Column } from 'typeorm';
+import { IsString, Length, IsOptional } from 'class-validator';
 
 export class CreateUserDto {
   @ApiProperty({
-    example: 'Amirbek',
+    example: 'Amirbek Amiraev',
     description: 'ФИО пользователя',
     maxLength: 255,
   })
-  @Column({ nullable: true })
+  @IsString()
+  @Length(1, 255)
   firstName!: string;
 
   @ApiProperty({
-    example: '+996777380432',
+    example: '+996700123456',
     description: 'Номер телефона',
   })
   @IsString()

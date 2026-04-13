@@ -135,19 +135,19 @@ TWILIO_PHONE_NUMBER=+1234567890
 
 ### 1. Регистрация
 
-- URL: `POST http://localhost:3000/auth/register`
+- URL: `POST https://zhumushkg-backend-production.up.railway.app//auth/register`
 - Body: JSON с данными (см. выше)
 - Сохраните `smsCode` из ответа
 
 ### 2. Подтверждение
 
-- URL: `POST http://localhost:3000/auth/confirm-phone`
+- URL: `POST https://zhumushkg-backend-production.up.railway.app//auth/confirm-phone`
 - Body: `{ "smsCode": "xxx" }`
 - Используйте код из предыдущего ответа
 
 ### 3. Вход
 
-- URL: `POST http://localhost:3000/auth/login`
+- URL: `POST https://zhumushkg-backend-production.up.railway.app//auth/login`
 - Body: `{ "phoneNumber": "+xxx", "password": "xxx" }`
 
 ---
