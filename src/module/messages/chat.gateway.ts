@@ -11,14 +11,13 @@ import {
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { NotificationService } from '../notification/notificant.service';
+import { CustomLogger } from '../../helpers/logger/logger.service';
 
-// Карта для хранения сокетов пользователей  пока временная лучше редис дольнешо на этапе согласования
+// Карта для хранения сокетов пользователей — пока временная, лучше редис на дальнейшем этапе согласования
 const userSockets = new Map<number, Set<string>>();
 
 @WebSocketGateway({
-  cors: {
-    origin: '*',
-  },
+  cors: { origin: '*' },
   namespace: 'chat',
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -28,15 +27,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly chatService: ChatService,
     private readonly notificationService: NotificationService,
+    private readonly logger: CustomLogger,
   ) {}
 
   async handleConnection(client: Socket) {
     const user = client.data.userId;
 
     if (!user) {
+      this.logger.warn(
+        `[WARN] WS connection rejected — no userId, socketId: ${client.id}`,
+        client.id,
+      );
       client.disconnect();
       return;
     }
+
     client.data.userId = user.id as number;
     client.data.role = user.role as string;
 
@@ -44,17 +49,27 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userSockets.set(user.id, new Set());
     }
     userSockets.get(user.id)!.add(client.id);
+
+    this.logger.debug(
+      `[SUCCESS] User connected: userId=${user.id}, socketId=${client.id}`,
+      client.id,
+    );
   }
-  // отключения от клиента и  удаляем временного масива userSockets
+
+  // Отключение клиента и удаление из временного массива userSockets
   handleDisconnect(client: Socket) {
     const userId = client.data.userId;
+
     if (userId) {
       userSockets.get(userId)?.delete(client.id);
       if (userSockets.get(userId)?.size === 0) {
         userSockets.delete(userId);
       }
+      this.logger.debug(
+        `[SUCCESS] User disconnected: userId=${userId}, socketId=${client.id}`,
+        client.id,
+      );
     }
-    // logger
   }
 
   @SubscribeMessage('chat:join')
@@ -63,33 +78,49 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { chatId: number },
   ) {
     const userId: number = client.data.userId;
+    this.logger.debug(
+      `[GATEWAY] chat:join userId=${userId}, chatId=${payload.chatId}`,
+      client.id,
+    );
 
     try {
       await this.chatService.getChatById(payload.chatId, userId);
       client.join(`chat_${payload.chatId}`);
-
       await this.chatService.markAsRead(payload.chatId, userId);
 
       client.to(`chat_${payload.chatId}`).emit('chat:user_joined', {
-        ChatId: payload.chatId,
+        chatId: payload.chatId,
         byUserId: userId,
       });
+
+      this.logger.debug(
+        `[SUCCESS] chat:join userId=${userId}, chatId=${payload.chatId}`,
+        client.id,
+      );
+
       return { event: 'chat:joined', data: { chatId: payload.chatId } };
     } catch (error) {
-      // заменить на logger и  удалить  console.log
-
+      this.logger.error(
+        `[ERROR] chat:join userId=${userId}, chatId=${payload.chatId}: ${JSON.stringify(error)}`,
+        client.id,
+      );
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       throw new WsException('Failed to join chat: ' + errorMessage);
     }
   }
-  // покинуть чат и  удалить из комнаты  и  отправить что пользователь покинул чат
+
+  // Покинуть чат, удалить из комнаты и уведомить участников
   @SubscribeMessage('chat:leave')
   handleLeave(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { chatId: number },
   ) {
     client.leave(`chat_${payload.chatId}`);
+    this.logger.debug(
+      `[SUCCESS] chat:leave userId=${client.data.userId}, chatId=${payload.chatId}`,
+      client.id,
+    );
     return { event: 'chat:left', data: { chatId: payload.chatId } };
   }
 
@@ -99,6 +130,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { chatId: number; content: string },
   ) {
     const userId: number = client.data.userId;
+    this.logger.debug(
+      `[GATEWAY] chat:send_message userId=${userId}, chatId=${payload.chatId}`,
+      client.id,
+    );
+
     try {
       const message = await this.chatService.sendMessage(
         Number(payload.chatId),
@@ -108,18 +144,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.server.to(`chat_${payload.chatId}`).emit('chat:new_message', {
         chatId: payload.chatId,
-        message: message,
+        message,
       });
 
       const chat = await this.chatService.getChatById(
         Number(payload.chatId),
         userId,
       );
-
       const recipientId =
         chat.hr_id === userId ? chat.candidate_id : chat.hr_id;
 
-      // проверяем онлайн ли получатель в этой комнате
+      // Проверяем, онлайн ли получатель в этой комнате
       const room = this.server.sockets.adapter.rooms.get(
         `chat_${payload.chatId}`,
       );
@@ -127,10 +162,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const isInRoom = [...(sockets ?? [])].some((sid) => room?.has(sid));
 
       if (!isInRoom) {
-        // WS уведомление если онлайн но не в комнате
+        // WS-уведомление если онлайн, но не в комнате
         this.notifyIfNotInRoom(recipientId, Number(payload.chatId), message);
 
-        // SSE уведомление — сохранит в БД и отправит через stream
+        // SSE-уведомление — сохранит в БД и отправит через stream
         await this.notificationService.sendNotification(
           recipientId,
           'Новое сообщение',
@@ -141,8 +176,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         );
       }
 
+      this.logger.debug(
+        `[SUCCESS] chat:send_message userId=${userId}, chatId=${payload.chatId}, messageId=${message.id}`,
+        client.id,
+      );
+
       return { event: 'chat:message_sent', messageId: message.id };
     } catch (error) {
+      this.logger.error(
+        `[ERROR] chat:send_message userId=${userId}, chatId=${payload.chatId}: ${JSON.stringify(error)}`,
+        client.id,
+      );
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       throw new WsException(errorMessage);
@@ -167,6 +211,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { chatId: number },
   ) {
     const userId: number = client.data.userId;
+    this.logger.debug(
+      `[GATEWAY] chat:mark_read userId=${userId}, chatId=${payload.chatId}`,
+      client.id,
+    );
+
     try {
       await this.chatService.markAsRead(Number(payload.chatId), userId);
 
@@ -174,7 +223,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         chatId: payload.chatId,
         byUserId: userId,
       });
+
+      this.logger.debug(
+        `[SUCCESS] chat:mark_read userId=${userId}, chatId=${payload.chatId}`,
+        client.id,
+      );
     } catch (error) {
+      this.logger.error(
+        `[ERROR] chat:mark_read userId=${userId}, chatId=${payload.chatId}: ${JSON.stringify(error)}`,
+        client.id,
+      );
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       throw new WsException(errorMessage);
@@ -211,7 +269,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         Buffer.from(token.split('.')[1], 'base64').toString(),
       );
 
-      // Ожидаем в payload: { sub: number, role: string }
       if (!payload?.sub || !payload?.role) return null;
 
       return { id: Number(payload.sub), role: payload.role };

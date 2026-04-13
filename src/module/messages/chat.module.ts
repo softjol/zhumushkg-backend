@@ -5,13 +5,14 @@ import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
 import { ChatController } from './chat.controller';
 import { NotificationModule } from '../notification/notificant.module';
+import { CustomLogger } from '../../helpers/logger/logger.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ChatEntity, MessageEntity]),
     NotificationModule,
   ],
-  providers: [ChatService, ChatGateway],
+  providers: [ChatService, ChatGateway, CustomLogger],
   controllers: [ChatController],
   exports: [ChatService, ChatGateway],
 })
