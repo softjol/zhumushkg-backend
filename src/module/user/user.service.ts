@@ -7,6 +7,8 @@ import { CustomLogger } from '../../helpers/logger/logger.service';
 import { UserEntity } from '../database/entitis/user.entity';
 import { RoleEntity } from '../database/entitis/role.entity';
 import * as twilio from 'twilio';
+import { TelegramBotService } from '../telegram/telegram-bot.service';
+import { TelegramLinkService } from '../telegram/telegram-link.service';
 
 @Injectable()
 export class UserService {
@@ -18,6 +20,8 @@ export class UserService {
     @InjectRepository(RoleEntity)
     private readonly roleRepository: Repository<RoleEntity>,
     private readonly logger: CustomLogger,
+    private readonly telegramBotService: TelegramBotService,
+    private readonly telegramLinkService: TelegramLinkService,
   ) {
     // Инициализация Twilio клиента
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -52,24 +56,24 @@ export class UserService {
     }
   }
 
-  async findOneByEmail(email: string, refId: string) {
+  async findOneByEmail(phoneNumber: string, refId: string) {
     this.logger.debug(
-      `[SERVICE] find one by email ${JSON.stringify(email)}`,
+      `[SERVICE] find one by phoneNumber ${JSON.stringify(phoneNumber)}`,
       refId,
     );
     try {
       this.logger.debug(
-        `[SUCCESS] find one by email ${JSON.stringify(email)}`,
+        `[SUCCESS] find one by phoneNumber ${JSON.stringify(phoneNumber)}`,
         refId,
       );
 
       return this.userRepository.findOne({
-        where: { email },
+        where: { phoneNumber },
         relations: ['role'],
       });
     } catch (error) {
       this.logger.error(
-        `[ERROR] find one by email ${JSON.stringify(error)}`,
+        `[ERROR] find one by phoneNumber ${JSON.stringify(error)}`,
         refId,
       );
       throw error;
@@ -81,10 +85,15 @@ export class UserService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  async sendConfirmationSMS(phoneNumber: string, smsCode: string) {
+  async sendConfirmationSMS(
+    phoneNumber: string,
+    smsCode: string,
+    refId: string,
+  ) {
+    await this.trySendConfirmationTelegram(phoneNumber, smsCode, refId);
+
     try {
       if (!this.twilioClient) {
-        // Если Twilio не настроен, только логируем
         this.logger.error(
           'Twilio не настроен. Установите TWILIO_ACCOUNT_SID и TWILIO_AUTH_TOKEN',
           '',
@@ -93,7 +102,6 @@ export class UserService {
         return;
       }
 
-      // Отправляем SMS через Twilio
       await this.twilioClient.messages.create({
         body: `Ваш код подтверждения: ${smsCode}. Не делитесь этим кодом с никем!`,
         from: process.env.TWILIO_PHONE_NUMBER,
@@ -103,8 +111,39 @@ export class UserService {
       this.logger.debug(`SMS sent to ${phoneNumber}`, '');
     } catch (error) {
       this.logger.error(`Failed to send SMS to ${phoneNumber}: ${error}`, '');
-      // Не прерываем процесс регистрации если SMS не отправилась
       console.log(`SMS Code для ${phoneNumber}: ${smsCode}`);
+    }
+  }
+
+  /** Код в Telegram, если пользователь уже привязал номер через бота (/start → контакт). */
+  private async trySendConfirmationTelegram(
+    phoneNumber: string,
+    smsCode: string,
+    refId: string,
+  ) {
+    if (!this.telegramBotService.canSendMessages()) {
+      return;
+    }
+    try {
+      const chatId =
+        await this.telegramLinkService.findChatIdByPhone(phoneNumber);
+      if (!chatId) {
+        this.logger.debug(
+          `[Telegram] Нет привязки для ${phoneNumber}, код только SMS/лог`,
+          refId,
+        );
+        return;
+      }
+      await this.telegramBotService.sendOtpCode(chatId, smsCode);
+      this.logger.debug(
+        `[Telegram] Код подтверждения отправлен в чат ${chatId}`,
+        refId,
+      );
+    } catch (e) {
+      this.logger.error(
+        `[Telegram] Не удалось отправить код: ${String(e)}`,
+        refId,
+      );
     }
   }
 
@@ -118,7 +157,6 @@ export class UserService {
         `[SUCCESS] Creating user with phoneNumber: ${JSON.stringify(userData.phoneNumber)}`,
         refId,
       );
-      const hashedPassword = await bcrypt.hash(userData.password, 10);
 
       let role = await this.roleRepository.findOne({ where: { role: 'USER' } });
 
@@ -132,16 +170,15 @@ export class UserService {
       const smsCode = this.generateSmsCode();
 
       const user = await this.userRepository.create({
-        fullName: userData.fullName,
+        firstName: userData.firstName,
         phoneNumber: userData.phoneNumber,
-        password: hashedPassword,
         role: role,
         phoneConfirmed: false,
         smsCode: smsCode,
       });
 
       const savedUser = await this.userRepository.save(user);
-      await this.sendConfirmationSMS(savedUser.phoneNumber, smsCode);
+      await this.sendConfirmationSMS(savedUser.phoneNumber, smsCode, refId);
       return savedUser;
     } catch (error) {
       this.logger.error(
@@ -187,6 +224,25 @@ export class UserService {
     } catch (error) {
       this.logger.error(
         `[ERROR] find by SMS code ${JSON.stringify(error)}`,
+        refId,
+      );
+      throw error;
+    }
+  }
+
+  async findByPhoneAndSmsCode(
+    phoneNumber: string,
+    smsCode: string,
+    refId: string,
+  ) {
+    this.logger.debug(`[SERVICE] find by phone + SMS code`, refId);
+    try {
+      return this.userRepository.findOne({
+        where: { phoneNumber, smsCode },
+      });
+    } catch (error) {
+      this.logger.error(
+        `[ERROR] find by phone + SMS code ${JSON.stringify(error)}`,
         refId,
       );
       throw error;

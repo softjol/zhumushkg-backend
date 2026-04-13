@@ -1,19 +1,26 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
 
 export class ConfirmPhoneDto {
-  @ApiProperty({
-    example: '+996700123456',
-    description: 'Номер телефона пользователя',
+  @ApiPropertyOptional({
+    example: '777238',
+    description: 'Один код из SMS (единственное поле для кода)',
   })
+  @IsOptional()
   @IsString()
-  phoneNumber!: string;
+  code?: string;
 
-  @ApiProperty({
-    example: '123456',
-    description: 'Код подтверждения (OTP)',
+  @ApiPropertyOptional({
+    example: '+996777380432',
+    description: 'Номер, указанный при регистрации',
   })
+  @IsOptional()
   @IsString()
-  smsCode!: string;
+  phoneNumber?: string;
+
+  /** Старое имя поля; в Swagger скрыто. Не отправляйте вместе с code — достаточно одного кода. */
+  @ApiHideProperty()
+  @IsOptional()
+  @IsString()
+  smsCode?: string;
 }
-

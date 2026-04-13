@@ -6,7 +6,7 @@ import { RoleDto } from "./dto/role.dto";
 import { RefId } from "src/decorators/ref.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
-@ApiTags('Auth')
+@ApiTags('Role')
 @Controller('role')
 export class RoleController {
  constructor(private readonly roleService: RoleService, private readonly logger: CustomLogger) {}

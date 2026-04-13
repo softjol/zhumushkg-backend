@@ -9,12 +9,14 @@ import {
   MessageEvent,
   Res,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { NotificationService } from './notificant.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { RefId } from '../../decorators/ref.decorator';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
+@ApiTags('Уведомления')
 @Controller('notification')
 export class NotificationController {
   constructor(

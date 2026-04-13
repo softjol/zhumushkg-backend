@@ -22,11 +22,6 @@ export class AuthService {
     );
 
     try {
-      // Проверка совпадения пароля и подтверждения пароля
-      if (userData.password !== userData.confirm_password) {
-        throw new HttpException(`Пароли не совпадают`, HttpStatus.BAD_REQUEST);
-      }
-
       const existingUser = await this.userService.findOneByPhoneNumber(
         userData.phoneNumber,
         refId,
@@ -77,6 +72,14 @@ export class AuthService {
     return this.userService.findByPhoneConfirmationToken(smsCode, refId);
   }
 
+  async findByPhoneAndConfirmationCode(
+    phoneNumber: string,
+    code: string,
+    refId: string,
+  ) {
+    return this.userService.findByPhoneAndSmsCode(phoneNumber, code, refId);
+  }
+
   async save(user: UserEntity) {
     return this.userService.save(user);
   }
@@ -95,14 +98,6 @@ export class AuthService {
         throw new HttpException('Пользователь не найден', HttpStatus.NOT_FOUND);
       }
 
-      const passwordEqual = await bcrypt.compare(
-        login.password,
-        user?.password || '',
-      );
-      if (!passwordEqual) {
-        throw new HttpException('Неверный пароль', HttpStatus.UNAUTHORIZED);
-      }
-
       if (!user.phoneConfirmed) {
         throw new HttpException(
           'Номер телефона не подтвержден',
@@ -115,7 +110,7 @@ export class AuthService {
         id: user.id,
         role: user.role.role,
         phoneConfirmed: user.phoneConfirmed,
-        full_name: user.fullName,
+        firstName: user.firstName,
       };
       this.logger.debug(`[SERVICE] login SUCCESS`, refId);
       return {

@@ -12,6 +12,7 @@ import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateUserDto } from '../user/dto/user.dto';
 import { RefId } from '../../decorators/ref.decorator';
 import { LoginDto } from './dto/login.dto';
+import { ConfirmPhoneDto } from './dto/confirm-phone.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -21,6 +22,7 @@ export class AuthController {
     private readonly logger: CustomLogger,
   ) {}
 
+  @ApiOperation({ summary: '1. Регистрация (далее confirm-phone и login)' })
   @Post('register')
   async register(@Body() userData: CreateUserDto, @RefId() refId: string) {
     this.logger.debug(
@@ -42,34 +44,35 @@ export class AuthController {
     }
   }
 
-  @Get('profile/:id')
-  async getProfile(@Param('id') id: number, @RefId() refId: string) {
-    this.logger.debug(`[CONTROLLER] get profile`, refId);
-    try {
-      // Здесь должна быть логика получения профиля пользователя
-      this.logger.debug(`[CONTROLLER] get profile SUCCESS`, refId);
-      const user = await this.authService.getProfile(id, refId);
-      return user;
-    } catch (error) {
-      this.logger.error(`[CONTROLLER] get profile failed: ${error}`, refId);
-      throw error;
-    }
-  }
-
+  @ApiOperation({
+    summary:
+      '2. Подтверждение телефона — тело: {"phoneNumber":"+996...","code":"777238"} или {"smsCode":"..."}',
+  })
   @Post('confirm-phone')
   async confirmPhone(
-    @Body() body: { smsCode: string },
+    @Body() dto: ConfirmPhoneDto,
     @RefId() refId: string,
   ) {
     this.logger.debug(`[CONTROLLER] confirm phone`, refId);
     try {
-      const user = await this.authService.findByConfirmationToken(
-        body.smsCode,
-        refId,
-      );
+      const code = (dto?.code ?? dto?.smsCode)?.trim();
+      if (!code) {
+        throw new BadRequestException(
+          'Передайте code или smsCode, например: {"phoneNumber":"+996777380432","code":"777238"}',
+        );
+      }
+
+      const phone = dto?.phoneNumber?.trim();
+      const user = phone
+        ? await this.authService.findByPhoneAndConfirmationCode(
+            phone,
+            code,
+            refId,
+          )
+        : await this.authService.findByConfirmationToken(code, refId);
 
       if (!user) {
-        throw new BadRequestException('Неверный код подтверждения');
+        throw new BadRequestException('Неверный код или номер телефона');
       }
 
       user.phoneConfirmed = true;
@@ -85,7 +88,7 @@ export class AuthController {
     }
   }
 
-  @ApiOperation({ summary: 'Вход — access_token для Swagger Authorize' })
+  @ApiOperation({ summary: '3. Вход — access_token для Swagger → Authorize' })
   @Post('login')
   async login(@Body() login: LoginDto, @RefId() refId: string) {
     this.logger.debug(`[CONTROLLER] login`, refId);
@@ -95,6 +98,20 @@ export class AuthController {
       return user;
     } catch (error) {
       this.logger.error(`[CONTROLLER] login failed: ${error}`, refId);
+      throw error;
+    }
+  }
+
+  @ApiOperation({ summary: 'Профиль по id' })
+  @Get('profile/:id')
+  async getProfile(@Param('id') id: number, @RefId() refId: string) {
+    this.logger.debug(`[CONTROLLER] get profile`, refId);
+    try {
+      this.logger.debug(`[CONTROLLER] get profile SUCCESS`, refId);
+      const user = await this.authService.getProfile(id, refId);
+      return user;
+    } catch (error) {
+      this.logger.error(`[CONTROLLER] get profile failed: ${error}`, refId);
       throw error;
     }
   }

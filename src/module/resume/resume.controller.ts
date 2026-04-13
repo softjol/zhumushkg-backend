@@ -21,7 +21,7 @@ import {
 } from './dto/resume-response.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@ApiTags('Вакансии и резюме')
+@ApiTags('Resume')
 @Controller('resume')
 export class ResumeController {
   constructor(

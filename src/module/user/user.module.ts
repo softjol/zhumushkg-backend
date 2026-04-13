@@ -5,9 +5,13 @@ import { UserService } from './user.service';
 import { UserEntity } from '../database/entitis/user.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RoleEntity } from '../database/entitis/role.entity';
+import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserEntity, RoleEntity])],
+  imports: [
+    TypeOrmModule.forFeature([UserEntity, RoleEntity]),
+    TelegramModule,
+  ],
   controllers: [UserController],
   providers: [UserService, CustomLogger],
   exports: [UserService],

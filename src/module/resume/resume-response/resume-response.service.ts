@@ -64,7 +64,7 @@ export class ResumeResponseService {
           await this.notificationService.sendNotification(
             applicant.id,
             'Новый отклик на ваше резюме',
-            `${employer.fullName} заинтересован в вашем резюме`,
+            `${employer.firstName} заинтересован в вашем резюме`,
             refId,
           );
         }
