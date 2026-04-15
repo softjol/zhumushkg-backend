@@ -56,32 +56,19 @@ export class UserService {
     }
   }
 
-  async findOneByEmail(phoneNumber: string, refId: string) {
-    this.logger.debug(
-      `[SERVICE] find one by phoneNumber ${JSON.stringify(phoneNumber)}`,
-      refId,
-    );
+  async removeById(id: number, refId: string) {
+    this.logger.debug(`[SERVICE] remove by id ${JSON.stringify(id)}`, refId);
     try {
-      this.logger.debug(
-        `[SUCCESS] find one by phoneNumber ${JSON.stringify(phoneNumber)}`,
-        refId,
-      );
-
-      return this.userRepository.findOne({
-        where: { phoneNumber },
-        relations: ['role'],
-      });
+      this.logger.debug(`[SUCCESS] remove by id ${JSON.stringify(id)}`, refId);
+      await this.userRepository.delete(id);
+      return { message: `Пользователь с id ${id} удален успешно` };
     } catch (error) {
-      this.logger.error(
-        `[ERROR] find one by phoneNumber ${JSON.stringify(error)}`,
-        refId,
-      );
+      this.logger.error(`[ERROR] remove by id ${JSON.stringify(error)}`, refId);
       throw error;
     }
   }
 
   private generateSmsCode(): string {
-    // Генерируем 6-цифровой код
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
@@ -115,7 +102,6 @@ export class UserService {
     }
   }
 
-  /** Код в Telegram, если пользователь уже привязал номер через бота (/start → контакт). */
   private async trySendConfirmationTelegram(
     phoneNumber: string,
     smsCode: string,
@@ -220,6 +206,7 @@ export class UserService {
     try {
       return this.userRepository.findOne({
         where: { smsCode: smsCode },
+        relations: ['role'],
       });
     } catch (error) {
       this.logger.error(
@@ -239,6 +226,7 @@ export class UserService {
     try {
       return this.userRepository.findOne({
         where: { phoneNumber, smsCode },
+        relations: ['role'],
       });
     } catch (error) {
       this.logger.error(
@@ -257,5 +245,19 @@ export class UserService {
 
   async save(user: UserEntity) {
     return this.userRepository.save(user);
+  }
+
+  async updateSmsCodeAndSend(
+    phoneNumber: string,
+    refId: string,
+  ): Promise<void> {
+    const user = await this.findOneByPhoneNumber(phoneNumber, refId);
+    if (!user) {
+      throw new HttpException('Пользователь не найден', HttpStatus.NOT_FOUND);
+    }
+    const newCode = this.generateSmsCode();
+    user.smsCode = newCode;
+    await this.save(user);
+    await this.sendConfirmationSMS(phoneNumber, newCode, refId);
   }
 }

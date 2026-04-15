@@ -17,7 +17,7 @@ import { CreateApplicationDto } from './dto/application.dto';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@ApiTags('Вакансии и резюме')
+@ApiTags('Отклики на вакансии')
 @Controller('applications')
 export class ApplicationController {
   constructor(

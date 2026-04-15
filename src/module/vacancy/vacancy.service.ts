@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { VacancyEntity } from '../database/entitis/vacancy.enity';
+import { VacancyEntity } from '../database/entitis/vacancy.entity';
 import { Repository } from 'typeorm';
 import { CreateVacancyDto } from './dto/vacancy.dto';
 import { CustomLogger } from '../../helpers/logger/logger.service';

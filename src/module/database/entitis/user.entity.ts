@@ -36,10 +36,4 @@ export class UserEntity {
 
   @OneToMany(() => ApplicationEntity, (application) => application.candidate)
   applications: ApplicationEntity[];
-
-  @Column({ type: 'varchar', nullable: true })
-  phoneConfirmationToken!: string | null;
-
-  @Column({ type: 'varchar', nullable: true })
-  fcmToken!: string | null;
 }

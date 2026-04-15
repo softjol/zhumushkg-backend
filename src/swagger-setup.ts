@@ -41,8 +41,7 @@ export function buildSwaggerConfig() {
       .addTag('App', 'Корень сервиса')
       .addTag('Role', 'Роли')
       .addTag('Resume', 'Резюме и отклики на резюме')
-      .addTag('Вакансии и резюме', 'Вакансии и заявки (applications)')
-      .addTag('Telegram', 'Telegram-бот и связанные сценарии')
+      .addTag('Вакансии', 'Вакансии')
       .addTag('Уведомления', 'SSE и уведомления')
       .build()
   );

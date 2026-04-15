@@ -49,39 +49,24 @@ export class AuthController {
       '2. Подтверждение телефона — тело: {"phoneNumber":"+996...","code":"777238"} или {"smsCode":"..."}',
   })
   @Post('confirm-phone')
-  async confirmPhone(
-    @Body() dto: ConfirmPhoneDto,
-    @RefId() refId: string,
-  ) {
+  async confirmPhone(@Body() dto: ConfirmPhoneDto, @RefId() refId: string) {
     this.logger.debug(`[CONTROLLER] confirm phone`, refId);
     try {
       const code = (dto?.code ?? dto?.smsCode)?.trim();
-      if (!code) {
+      if (!code || !dto.phoneNumber) {
         throw new BadRequestException(
           'Передайте code или smsCode, например: {"phoneNumber":"+996777380432","code":"777238"}',
         );
       }
 
-      const phone = dto?.phoneNumber?.trim();
-      const user = phone
-        ? await this.authService.findByPhoneAndConfirmationCode(
-            phone,
-            code,
-            refId,
-          )
-        : await this.authService.findByConfirmationToken(code, refId);
-
-      if (!user) {
-        throw new BadRequestException('Неверный код или номер телефона');
-      }
-
-      user.phoneConfirmed = true;
-      user.smsCode = null;
-
-      await this.authService.save(user);
+      const result = await this.authService.confirmPhone(
+        dto.phoneNumber,
+        code,
+        refId,
+      );
 
       this.logger.debug(`[CONTROLLER] confirm phone SUCCESS`, refId);
-      return { message: 'Номер телефона успешно подтвержден' };
+      return result;
     } catch (error) {
       this.logger.error(`[CONTROLLER] confirm phone failed: ${error}`, refId);
       throw error;

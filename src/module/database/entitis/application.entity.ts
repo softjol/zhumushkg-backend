@@ -7,7 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { VacancyEntity } from './vacancy.enity';
+import { VacancyEntity } from './vacancy.entity';
 import { UserEntity } from './user.entity';
 import { ResumeEntity } from './resume.entity';
 

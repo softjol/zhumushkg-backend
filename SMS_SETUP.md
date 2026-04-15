@@ -5,7 +5,6 @@
 ### 1. Database Schema
 
 - Добавлено поле `smsCode` в таблицу `user` для хранения 6-цифрового кода подтверждения
-- Поле `phoneConfirmationToken` оставлено для обратной совместимости
 
 ### 2. API Endpoints
 
