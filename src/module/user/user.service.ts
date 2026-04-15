@@ -247,10 +247,7 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
-  async updateSmsCodeAndSend(
-    phoneNumber: string,
-    refId: string,
-  ): Promise<void> {
+  async updateSmsCodeAndSend(phoneNumber: string, refId: string) {
     const user = await this.findOneByPhoneNumber(phoneNumber, refId);
     if (!user) {
       throw new HttpException('Пользователь не найден', HttpStatus.NOT_FOUND);
@@ -259,5 +256,8 @@ export class UserService {
     user.smsCode = newCode;
     await this.save(user);
     await this.sendConfirmationSMS(phoneNumber, newCode, refId);
+    console.log('code', newCode);
+
+    return newCode;
   }
 }
