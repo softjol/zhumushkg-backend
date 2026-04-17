@@ -8,14 +8,17 @@ import {
   MessageBody,
   WsException,
 } from '@nestjs/websockets';
+import { UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { NotificationService } from '../notification/notificant.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
+import { WsJwtGuard } from './ws-jwt.guard';
 
 // Карта для хранения сокетов пользователей — пока временная, лучше редис на дальнейшем этапе согласования
 const userSockets = new Map<number, Set<string>>();
 
+@UseGuards(WsJwtGuard)
 @WebSocketGateway({
   cors: { origin: '*' },
   namespace: 'chat',
@@ -30,35 +33,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly logger: CustomLogger,
   ) {}
 
+  // WsJwtGuard уже записал userId и role в client.data до handleConnection
   async handleConnection(client: Socket) {
-    const user = client.data.userId;
+    const userId = client.data.userId as number;
+    const role = client.data.role as string;
 
-    if (!user) {
+    if (!userId) {
       this.logger.warn(
-        `[WARN] WS connection rejected — no userId, socketId: ${client.id}`,
+        `[WARN] WS connection rejected — no userId, socketId=${client.id}`,
         client.id,
       );
       client.disconnect();
       return;
     }
 
-    client.data.userId = user.id as number;
-    client.data.role = user.role as string;
-
-    if (!userSockets.has(user.id)) {
-      userSockets.set(user.id, new Set());
+    if (!userSockets.has(userId)) {
+      userSockets.set(userId, new Set());
     }
-    userSockets.get(user.id)!.add(client.id);
+    userSockets.get(userId)!.add(client.id);
 
     this.logger.debug(
-      `[SUCCESS] User connected: userId=${user.id}, socketId=${client.id}`,
+      `[SUCCESS] User connected: userId=${userId}, role=${role}, socketId=${client.id}`,
       client.id,
     );
   }
 
   // Отключение клиента и удаление из временного массива userSockets
   handleDisconnect(client: Socket) {
-    const userId = client.data.userId;
+    const userId = client.data.userId as number;
 
     if (userId) {
       userSockets.get(userId)?.delete(client.id);
@@ -78,15 +80,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { chatId: number },
   ) {
     const userId: number = client.data.userId;
+    const refId = client.id;
     this.logger.debug(
       `[GATEWAY] chat:join userId=${userId}, chatId=${payload.chatId}`,
-      client.id,
+      refId,
     );
 
     try {
-      await this.chatService.getChatById(payload.chatId, userId);
+      await this.chatService.getChatById(payload.chatId, userId, refId);
       client.join(`chat_${payload.chatId}`);
-      await this.chatService.markAsRead(payload.chatId, userId);
+      await this.chatService.markAsRead(payload.chatId, userId, refId);
 
       client.to(`chat_${payload.chatId}`).emit('chat:user_joined', {
         chatId: payload.chatId,
@@ -95,14 +98,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.logger.debug(
         `[SUCCESS] chat:join userId=${userId}, chatId=${payload.chatId}`,
-        client.id,
+        refId,
       );
 
       return { event: 'chat:joined', data: { chatId: payload.chatId } };
     } catch (error) {
       this.logger.error(
         `[ERROR] chat:join userId=${userId}, chatId=${payload.chatId}: ${JSON.stringify(error)}`,
-        client.id,
+        refId,
       );
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -116,9 +119,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { chatId: number },
   ) {
+    const userId: number = client.data.userId;
     client.leave(`chat_${payload.chatId}`);
     this.logger.debug(
-      `[SUCCESS] chat:leave userId=${client.data.userId}, chatId=${payload.chatId}`,
+      `[SUCCESS] chat:leave userId=${userId}, chatId=${payload.chatId}`,
       client.id,
     );
     return { event: 'chat:left', data: { chatId: payload.chatId } };
@@ -130,9 +134,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { chatId: number; content: string },
   ) {
     const userId: number = client.data.userId;
+    const refId = client.id;
     this.logger.debug(
       `[GATEWAY] chat:send_message userId=${userId}, chatId=${payload.chatId}`,
-      client.id,
+      refId,
     );
 
     try {
@@ -140,6 +145,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         Number(payload.chatId),
         userId,
         payload.content,
+        refId,
       );
 
       this.server.to(`chat_${payload.chatId}`).emit('chat:new_message', {
@@ -150,6 +156,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const chat = await this.chatService.getChatById(
         Number(payload.chatId),
         userId,
+        refId,
       );
       const recipientId =
         chat.hr_id === userId ? chat.candidate_id : chat.hr_id;
@@ -178,14 +185,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.logger.debug(
         `[SUCCESS] chat:send_message userId=${userId}, chatId=${payload.chatId}, messageId=${message.id}`,
-        client.id,
+        refId,
       );
 
       return { event: 'chat:message_sent', messageId: message.id };
     } catch (error) {
       this.logger.error(
         `[ERROR] chat:send_message userId=${userId}, chatId=${payload.chatId}: ${JSON.stringify(error)}`,
-        client.id,
+        refId,
       );
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -211,13 +218,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { chatId: number },
   ) {
     const userId: number = client.data.userId;
+    const refId = client.id;
     this.logger.debug(
       `[GATEWAY] chat:mark_read userId=${userId}, chatId=${payload.chatId}`,
-      client.id,
+      refId,
     );
 
     try {
-      await this.chatService.markAsRead(Number(payload.chatId), userId);
+      await this.chatService.markAsRead(Number(payload.chatId), userId, refId);
 
       client.to(`chat_${payload.chatId}`).emit('chat:messages_read', {
         chatId: payload.chatId,
@@ -226,12 +234,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.logger.debug(
         `[SUCCESS] chat:mark_read userId=${userId}, chatId=${payload.chatId}`,
-        client.id,
+        refId,
       );
     } catch (error) {
       this.logger.error(
         `[ERROR] chat:mark_read userId=${userId}, chatId=${payload.chatId}: ${JSON.stringify(error)}`,
-        client.id,
+        refId,
       );
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -253,27 +261,5 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private notifyIfNotInRoom(recipientId: number, chatId: number, message: any) {
     this.emitToUser(recipientId, 'chat:notification', { chatId, message });
-  }
-
-  // TODO: заменить на this.jwtService.verify(token) когда подключат auth
-  private extractUser(client: Socket): { id: number; role: string } | null {
-    try {
-      const token =
-        client.handshake.auth?.token ||
-        client.handshake.headers?.authorization?.replace('Bearer ', '');
-
-      if (!token) return null;
-
-      // Временно декодируем без верификации подписи
-      const payload = JSON.parse(
-        Buffer.from(token.split('.')[1], 'base64').toString(),
-      );
-
-      if (!payload?.sub || !payload?.role) return null;
-
-      return { id: Number(payload.sub), role: payload.role };
-    } catch {
-      return null;
-    }
   }
 }

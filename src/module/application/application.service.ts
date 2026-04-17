@@ -25,86 +25,140 @@ export class ApplicationService {
   constructor(
     @InjectRepository(ApplicationEntity)
     private readonly applicationRepository: Repository<ApplicationEntity>,
-
     private readonly logger: CustomLogger,
-
     private readonly chatService: ChatService,
     private readonly chatGateway: ChatGateway,
   ) {}
 
-  async create(dto: CreateApplicationDto, refId: string) {
+  async create(dto: CreateApplicationDto, userId: number, refId: string) {
     this.logger.debug(
-      `[SERVICE] Creating application for vacancy ${dto.vacancy_id}`,
+      `[SERVICE] Creating application vacancyId=${dto.vacancy_id}, userId=${userId}`,
       refId,
     );
+
     try {
       const existing = await this.applicationRepository.findOne({
         where: {
           vacancy_id: dto.vacancy_id,
-          candidate_id: dto.candidate_id,
+          candidate_id: userId,
         },
       });
+
       if (existing) {
+        this.logger.warn(
+          `[WARN] create application already exists: vacancyId=${dto.vacancy_id}, userId=${userId}`,
+          refId,
+        );
         throw new ConflictException('You have already applied to this vacancy');
       }
+
       const application = this.applicationRepository.create({
         vacancy_id: dto.vacancy_id,
-        candidate_id: dto.candidate_id,
+        candidate_id: userId,
         resume_id: dto.resume_id,
         status: dto.status ?? ApplicationStatus.NEW,
       });
-      return await this.applicationRepository.save(application);
+
+      const saved = await this.applicationRepository.save(application);
+      this.logger.debug(
+        `[SUCCESS] create application applicationId=${saved.id}, userId=${userId}`,
+        refId,
+      );
+      return saved;
     } catch (error) {
+      this.logger.error(
+        `[ERROR] create application vacancyId=${dto.vacancy_id}, userId=${userId}: ${JSON.stringify(error)}`,
+        refId,
+      );
       throw error;
     }
   }
 
-  async findAll(refId: string) {
-    this.logger.debug(`[SERVICE] findAll applications`, refId);
+  async findAll(userId: number, refId: string) {
+    this.logger.debug(`[SERVICE] findAll applications userId=${userId}`, refId);
+
     try {
-      return await this.applicationRepository.find({
+      const applications = await this.applicationRepository.find({
         relations: ['vacancy', 'candidate', 'resume'],
       });
+
+      this.logger.debug(
+        `[SUCCESS] findAll applications count=${applications.length}, userId=${userId}`,
+        refId,
+      );
+      return applications;
     } catch (error) {
+      this.logger.error(
+        `[ERROR] findAll applications userId=${userId}: ${JSON.stringify(error)}`,
+        refId,
+      );
       throw error;
     }
   }
 
-  async findById(id: number, refId: string) {
-    this.logger.debug(`[SERVICE] findById ${id}`, refId);
+  async findById(id: number, userId: number, refId: string) {
+    this.logger.debug(
+      `[SERVICE] findById applicationId=${id}, userId=${userId}`,
+      refId,
+    );
+
     try {
       const application = await this.applicationRepository.findOne({
         where: { id },
         relations: ['vacancy', 'candidate', 'resume'],
       });
+
+      if (!application) {
+        this.logger.warn(
+          `[WARN] findById application not found: applicationId=${id}`,
+          refId,
+        );
+        throw new NotFoundException(`Application #${id} not found`);
+      }
+
+      this.logger.debug(
+        `[SUCCESS] findById applicationId=${id}, userId=${userId}`,
+        refId,
+      );
       return application;
     } catch (error) {
+      this.logger.error(
+        `[ERROR] findById applicationId=${id}, userId=${userId}: ${JSON.stringify(error)}`,
+        refId,
+      );
       throw error;
     }
   }
 
-  // ── Главный метод — здесь открывается чат ──────────────────────────────────
   async updateStatus(
     id: number,
     status: ApplicationStatus,
-    hrId: number, // ← добавить параметр (id HR из JWT, когда подключат auth)
+    userId: number,
     refId: string,
   ) {
     this.logger.debug(
-      `[SERVICE] updateStatus application ${id} → ${status}`,
+      `[SERVICE] updateStatus applicationId=${id}, status=${status}, userId=${userId}`,
       refId,
     );
 
-    const application = await this.applicationRepository.findOne({
-      where: { id },
-    });
-
-    if (!application) {
-      throw new NotFoundException(`Application #${id} not found`);
-    }
-
     try {
+      const application = await this.applicationRepository.findOne({
+        where: { id },
+      });
+
+      if (!application) {
+        this.logger.warn(
+          `[WARN] updateStatus application not found: applicationId=${id}`,
+          refId,
+        );
+        throw new NotFoundException(`Application #${id} not found`);
+      }
+
       if (application.status === ApplicationStatus.HIRED) {
+        this.logger.warn(
+          `[WARN] updateStatus cannot change status of hired candidate: applicationId=${id}`,
+          refId,
+        );
         throw new BadRequestException(
           'Cannot change status of a hired candidate',
         );
@@ -115,41 +169,79 @@ export class ApplicationService {
 
       if (STATUSES_THAT_OPEN_CHAT.includes(status)) {
         const chat = await this.chatService.openChatFromApplication(
-          hrId, // HR который меняет статус
-          application.candidate_id, // кандидат из отклика
-          application.vacancy_id, // вакансия из отклика
-          application.id, // сам отклик
+          userId,
+          application.candidate_id,
+          application.vacancy_id,
+          application.id,
+          refId,
         );
 
-        // Уведомляем кандидата через WebSocket если он онлайн
         this.chatGateway.notifyNewChat(application.candidate_id, chat);
 
         this.logger.debug(
-          `[SERVICE] Chat opened: chatId=${chat.id} for application ${id}`,
+          `[SUCCESS] updateStatus chat opened: chatId=${chat.id}, applicationId=${id}`,
           refId,
         );
       }
 
+      this.logger.debug(
+        `[SUCCESS] updateStatus applicationId=${id}, status=${status}, userId=${userId}`,
+        refId,
+      );
       return saved;
     } catch (error) {
+      this.logger.error(
+        `[ERROR] updateStatus applicationId=${id}, status=${status}, userId=${userId}: ${JSON.stringify(error)}`,
+        refId,
+      );
       throw error;
     }
   }
 
-  async remove(id: number, refId: string): Promise<void> {
-    const application = await this.applicationRepository.findOne({
-      where: { id },
-    });
-    if (!application) {
-      throw new NotFoundException(`Application #${id} not found`);
+  async remove(id: number, userId: number, refId: string): Promise<void> {
+    this.logger.debug(
+      `[SERVICE] remove applicationId=${id}, userId=${userId}`,
+      refId,
+    );
+
+    try {
+      const application = await this.applicationRepository.findOne({
+        where: { id },
+      });
+
+      if (!application) {
+        this.logger.warn(
+          `[WARN] remove application not found: applicationId=${id}`,
+          refId,
+        );
+        throw new NotFoundException(`Application #${id} not found`);
+      }
+
+      if (
+        [ApplicationStatus.OFFER, ApplicationStatus.HIRED].includes(
+          application.status,
+        )
+      ) {
+        this.logger.warn(
+          `[WARN] remove cannot withdraw at this stage: applicationId=${id}, status=${application.status}`,
+          refId,
+        );
+        throw new ConflictException(
+          'Cannot withdraw application at this stage',
+        );
+      }
+
+      await this.applicationRepository.delete(id);
+      this.logger.debug(
+        `[SUCCESS] remove applicationId=${id}, userId=${userId}`,
+        refId,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[ERROR] remove applicationId=${id}, userId=${userId}: ${JSON.stringify(error)}`,
+        refId,
+      );
+      throw error;
     }
-    if (
-      [ApplicationStatus.OFFER, ApplicationStatus.HIRED].includes(
-        application.status,
-      )
-    ) {
-      throw new ConflictException('Cannot withdraw application at this stage');
-    }
-    await this.applicationRepository.delete(id);
   }
 }
