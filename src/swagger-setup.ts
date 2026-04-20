@@ -7,7 +7,7 @@ const SWAGGER_UI_DIST = 'https://unpkg.com/swagger-ui-dist@5.11.0';
 function openApiServerUrl(): string {
   return (
     process.env.OPENAPI_SERVER_URL?.trim() ||
-    `https://zhumushkg-backend-production.up.railway.app`
+    `http://localhost:${process.env.PORT || 8080}`
   );
 }
 
@@ -36,6 +36,10 @@ export function buildSwaggerConfig() {
         },
         'access-token',
       )
+      // По умолчанию все эндпоинты требуют JWT (замок в Swagger).
+      // Публичные эндпоинты остаются доступными за счёт @Public() в рантайме,
+      // но в Swagger будут помечены как защищённые для консистентности.
+      .addSecurityRequirements('access-token')
       // Auth первым — начинать с регистрации / входа
       .addTag('Auth', 'Регистрация, подтверждение телефона, вход')
       .addTag('App', 'Корень сервиса')

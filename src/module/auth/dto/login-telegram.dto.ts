@@ -9,4 +9,3 @@ export class LoginTelegramDto {
   @IsString()
   phoneNumber!: string;
 }
-

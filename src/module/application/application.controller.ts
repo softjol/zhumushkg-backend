@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -16,6 +17,7 @@ import { ApplicationStatus } from '../database/entitis/application.entity';
 import { CreateApplicationDto } from './dto/application.dto';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Request } from 'express';
 
 @ApiTags('Отклики на вакансии')
 @Controller('applications')
@@ -29,9 +31,14 @@ export class ApplicationController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Подать отклик на вакансию (JWT после login)' })
   @Post()
-  async create(@Body() dto: CreateApplicationDto, @RefId() refId: string) {
+  async create(
+    @Body() dto: CreateApplicationDto,
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
+  ) {
     this.logger.debug(`[CONTROLLER] Create application`, refId);
-    return await this.applicationService.create(dto, refId);
+    const candidateId = Number(req.user?.id);
+    return await this.applicationService.create(dto, candidateId, refId);
   }
 
   @Get()

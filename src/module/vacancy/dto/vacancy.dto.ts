@@ -4,10 +4,12 @@ import { IsString, IsNumber, IsOptional, IsBoolean } from 'class-validator';
 export class CreateVacancyDto {
   @ApiProperty({
     example: 1,
+    required: false,
     description: 'ID пользователя, создавшего вакансию',
   })
   @IsNumber()
-  user_id: number;
+  @IsOptional()
+  user_id?: number;
 
   @ApiProperty({ example: 'Разработка', description: 'Профессия' })
   @IsString()

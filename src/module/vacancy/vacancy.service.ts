@@ -38,6 +38,22 @@ export class VacancyService {
       throw error;
     }
   }
+
+  async getMyVacancies(userId: number, refId: string) {
+    this.logger.debug(`[SERVICE] get my vacancies userId=${userId}`, refId);
+    try {
+      return await this.vacancyRepository.find({
+        where: { user_id: userId },
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `[ERROR] get my vacancies userId=${userId}: ${JSON.stringify(error)}`,
+        refId,
+      );
+      throw error;
+    }
+  }
   async getByIdVacancy(id: number, refId: string) {
     this.logger.debug(`[SERVICE] get vacancy by id ${id}`, refId);
 

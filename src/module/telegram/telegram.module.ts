@@ -10,4 +10,3 @@ import { TelegramLinkEntity } from '../database/entitis/telegram-link.entity';
   exports: [TelegramBotService, TelegramLinkService],
 })
 export class TelegramModule {}
-

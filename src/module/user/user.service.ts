@@ -9,6 +9,7 @@ import { RoleEntity } from '../database/entitis/role.entity';
 import * as twilio from 'twilio';
 import { TelegramBotService } from '../telegram/telegram-bot.service';
 import { TelegramLinkService } from '../telegram/telegram-link.service';
+import { randomInt } from 'crypto';
 
 @Injectable()
 export class UserService {
@@ -69,7 +70,7 @@ export class UserService {
   }
 
   private generateSmsCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return randomInt(1000, 10000).toString();
   }
 
   async sendConfirmationSMS(

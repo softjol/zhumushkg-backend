@@ -134,7 +134,10 @@ export class AuthService {
       );
     }
     // Генерируем новый код и отправляем
-    const code = await this.userService.updateSmsCodeAndSend(phoneNumber, refId);
+    const code = await this.userService.updateSmsCodeAndSend(
+      phoneNumber,
+      refId,
+    );
     this.logger.debug(
       `[SUCCESS] requestCode: code sent to ${phoneNumber}`,
       refId,

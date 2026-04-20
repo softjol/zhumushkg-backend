@@ -3,7 +3,7 @@ import { IsOptional, IsString } from 'class-validator';
 
 export class ConfirmPhoneDto {
   @ApiPropertyOptional({
-    example: '777238',
+    example: '7238',
     description: 'Один код из SMS (единственное поле для кода)',
   })
   @IsOptional()

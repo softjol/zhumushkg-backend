@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -14,6 +15,7 @@ import { CreateVacancyDto } from './dto/vacancy.dto';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { RefId } from '../../decorators/ref.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Request } from 'express';
 
 @ApiTags('Вакансии и резюме')
 @Controller('vacancy')
@@ -30,6 +32,7 @@ export class VacancyController {
   async createVacancy(
     @Body() vacancyData: CreateVacancyDto,
     @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
   ) {
     this.logger.debug(
       `[CONTROLLER] create vacancy ${JSON.stringify(vacancyData)}`,
@@ -37,6 +40,8 @@ export class VacancyController {
     );
 
     try {
+      const userId = Number(req.user?.id);
+      vacancyData.user_id = userId;
       const vacancy = await this.vacancyService.createVacancy(
         vacancyData,
         refId,
@@ -50,6 +55,18 @@ export class VacancyController {
       );
       throw error;
     }
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Мои вакансии (JWT)' })
+  @Get('my')
+  async myVacancies(
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
+  ) {
+    const userId = Number(req.user?.id);
+    return await this.vacancyService.getMyVacancies(userId, refId);
   }
 
   @Get()

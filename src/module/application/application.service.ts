@@ -1,6 +1,5 @@
 import {
   Injectable,
-  Logger,
   NotFoundException,
   ConflictException,
   BadRequestException,
@@ -11,6 +10,8 @@ import {
   ApplicationEntity,
   ApplicationStatus,
 } from '../database/entitis/application.entity';
+import { ResumeEntity } from '../database/entitis/resume.entity';
+import { VacancyEntity } from '../database/entitis/vacancy.entity';
 import { CreateApplicationDto } from './dto/application.dto';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
 
@@ -19,59 +20,75 @@ export class ApplicationService {
   constructor(
     @InjectRepository(ApplicationEntity)
     private readonly applicationRepository: Repository<ApplicationEntity>,
+    @InjectRepository(ResumeEntity)
+    private readonly resumeRepository: Repository<ResumeEntity>,
+    @InjectRepository(VacancyEntity)
+    private readonly vacancyRepository: Repository<VacancyEntity>,
     private readonly logger: CustomLogger,
   ) {}
 
-  async create(dto: CreateApplicationDto, refId: string) {
+  async create(dto: CreateApplicationDto, candidateId: number, refId: string) {
     this.logger.debug(
-      `[SERVICE] Creating application for vacancy ${dto.vacancy_id}`,
+      `[SERVICE] Creating application for vacancy ${dto.vacancy_id} candidateId=${candidateId}`,
       refId,
     );
 
-    try {
-      const existing = await this.applicationRepository.findOne({
-        where: {
-          vacancy_id: dto.vacancy_id,
-          candidate_id: dto.candidate_id,
-        },
-      });
+    const vacancy = await this.vacancyRepository.findOne({
+      where: { id: dto.vacancy_id },
+    });
+    if (!vacancy) {
+      throw new NotFoundException(`Vacancy #${dto.vacancy_id} not found`);
+    }
 
-      if (existing) {
-        throw new ConflictException('You have already applied to this vacancy');
-      }
+    const resume = await this.resumeRepository.findOne({
+      where: { id: dto.resume_id },
+    });
+    if (!resume) {
+      throw new NotFoundException(`Resume #${dto.resume_id} not found`);
+    }
+    if (resume.user_id !== candidateId) {
+      throw new BadRequestException('Resume does not belong to current user');
+    }
 
-      const application = this.applicationRepository.create({
+    const existing = await this.applicationRepository.findOne({
+      where: {
         vacancy_id: dto.vacancy_id,
-        candidate_id: dto.candidate_id,
-        resume_id: dto.resume_id,
-        status: dto.status ?? ApplicationStatus.NEW,
-      });
-      return await this.applicationRepository.save(application);
-    } catch (error) {}
+        candidate_id: candidateId,
+      },
+    });
+    if (existing) {
+      throw new ConflictException('You have already applied to this vacancy');
+    }
+
+    const application = this.applicationRepository.create({
+      vacancy_id: dto.vacancy_id,
+      candidate_id: candidateId,
+      resume_id: dto.resume_id,
+      status: ApplicationStatus.NEW,
+    });
+    return await this.applicationRepository.save(application);
   }
 
   async findAll(refId: string) {
     this.logger.debug(`[SERVICE] Creating application for vacancy`, refId);
-    try {
-      return await this.applicationRepository.find({
-        relations: ['vacancy', 'candidate', 'resume'],
-      });
-    } catch (error) {}
+    return await this.applicationRepository.find({
+      relations: ['vacancy', 'candidate', 'resume'],
+    });
   }
 
-  async findById(id, refId) {
-    this.logger.debug(`[SERVICE] `, refId);
-    try {
-      const application = await this.applicationRepository.findOne({
-        where: { id },
-        relations: ['vacancy', 'candidate', 'resume'],
-      });
-
-      return application;
-    } catch (error) {}
+  async findById(id: number, refId: string) {
+    this.logger.debug(`[SERVICE] find application by id=${id}`, refId);
+    return await this.applicationRepository.findOne({
+      where: { id },
+      relations: ['vacancy', 'candidate', 'resume'],
+    });
   }
 
   async updateStatus(id: number, status: ApplicationStatus, refId: string) {
+    this.logger.debug(
+      `[SERVICE] update application status id=${id} status=${status}`,
+      refId,
+    );
     const application = await this.applicationRepository.findOne({
       where: { id },
     });
@@ -80,19 +97,18 @@ export class ApplicationService {
       throw new NotFoundException(`Application #${id} not found`);
     }
 
-    try {
-      if (application.status === ApplicationStatus.HIRED) {
-        throw new BadRequestException(
-          'Cannot change status of a hired candidate',
-        );
-      }
+    if (application.status === ApplicationStatus.HIRED) {
+      throw new BadRequestException(
+        'Cannot change status of a hired candidate',
+      );
+    }
 
-      application.status = status;
-      return await this.applicationRepository.save(application);
-    } catch (error) {}
+    application.status = status;
+    return await this.applicationRepository.save(application);
   }
 
   async remove(id: number, refId: string): Promise<void> {
+    this.logger.debug(`[SERVICE] remove application id=${id}`, refId);
     const application = await this.applicationRepository.findOne({
       where: { id },
     });

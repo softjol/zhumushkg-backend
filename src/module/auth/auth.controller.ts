@@ -46,7 +46,7 @@ export class AuthController {
 
   @ApiOperation({
     summary:
-      '2. Подтверждение телефона — тело: {"phoneNumber":"+996...","code":"777238"} или {"smsCode":"..."}',
+      '2. Подтверждение телефона — тело: {"phoneNumber":"+996...","code":"7238"}',
   })
   @Post('confirm-phone')
   async confirmPhone(@Body() dto: ConfirmPhoneDto, @RefId() refId: string) {
@@ -55,7 +55,7 @@ export class AuthController {
       const code = (dto?.code ?? dto?.smsCode)?.trim();
       if (!code || !dto.phoneNumber) {
         throw new BadRequestException(
-          'Передайте code или smsCode, например: {"phoneNumber":"+996777380432","code":"777238"}',
+          'Передайте code или smsCode, например: {"phoneNumber":"+996777380432","code":"7238"}',
         );
       }
 

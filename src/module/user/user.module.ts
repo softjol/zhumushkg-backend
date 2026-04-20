@@ -8,10 +8,7 @@ import { RoleEntity } from '../database/entitis/role.entity';
 import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([UserEntity, RoleEntity]),
-    TelegramModule,
-  ],
+  imports: [TypeOrmModule.forFeature([UserEntity, RoleEntity]), TelegramModule],
   controllers: [UserController],
   providers: [UserService, CustomLogger],
   exports: [UserService],

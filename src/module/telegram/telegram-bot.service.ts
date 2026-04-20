@@ -77,10 +77,11 @@ export class TelegramBotService implements OnModuleInit {
 
   async sendOtpCode(chatId: string, code: string) {
     if (!this.bot) {
-      throw new Error('Telegram bot не инициализирован (нет TELEGRAM_BOT_TOKEN)');
+      throw new Error(
+        'Telegram bot не инициализирован (нет TELEGRAM_BOT_TOKEN)',
+      );
     }
 
     await this.bot.sendMessage(chatId, `🔐 Ваш код: ${code}`);
   }
 }
-
