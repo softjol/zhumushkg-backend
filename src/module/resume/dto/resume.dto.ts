@@ -8,10 +8,6 @@ import {
 } from 'class-validator';
 
 export class CreateResumeDto {
-  @ApiProperty({ example: 1, description: 'ID пользователя' })
-  @IsNumber()
-  user_id: number;
-
   @ApiProperty({ example: 'Опытный разработчик', required: false })
   @IsString()
   @IsOptional()

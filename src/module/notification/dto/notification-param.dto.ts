@@ -9,14 +9,3 @@ export class NotificationParamDto {
   @IsPositive()
   id: number;
 }
-
-export class UserParamDto {
-  @ApiProperty({
-    example: 1,
-    description: 'ID пользователя (временно, заменить на JWT)',
-  })
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  userId: number;
-}
