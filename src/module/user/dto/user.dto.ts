@@ -9,7 +9,7 @@ export class CreateUserDto {
   })
   @IsString()
   @Length(1, 255)
-  fullName!: string;
+  firstName!: string;
 
   @ApiProperty({
     example: '+996700123456',
@@ -17,22 +17,4 @@ export class CreateUserDto {
   })
   @IsString()
   phoneNumber!: string;
-
-  @ApiProperty({
-    example: 'strongPassword123',
-    description: 'Пароль пользователя',
-    minLength: 6,
-  })
-  @IsString()
-  @Length(6, 255)
-  password!: string;
-
-  @ApiProperty({
-    example: 'strongPassword123',
-    description: 'Подтверждение пароля',
-    minLength: 6,
-  })
-  @IsString()
-  @Length(6, 255)
-  confirm_password!: string;
 }

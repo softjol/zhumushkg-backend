@@ -8,6 +8,16 @@ import {
 } from 'class-validator';
 
 export class CreateResumeDto {
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description:
+      'ID пользователя (опционально). В production берётся из JWT и игнорируется, если передан.',
+  })
+  @IsNumber()
+  @IsOptional()
+  user_id?: number;
+
   @ApiProperty({ example: 'Опытный разработчик', required: false })
   @IsString()
   @IsOptional()

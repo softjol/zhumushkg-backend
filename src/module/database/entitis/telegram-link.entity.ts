@@ -11,4 +11,3 @@ export class TelegramLinkEntity {
   @Column({ type: 'varchar' })
   chatId!: string;
 }
-

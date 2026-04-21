@@ -6,22 +6,20 @@ import {
   Patch,
   Param,
   Delete,
-  Logger,
   ParseIntPipe,
+  Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApplicationService } from './application.service';
 import { RefId } from 'src/decorators/ref.decorator';
-import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { ApplicationStatus } from '../database/entitis/application.entity';
 import { CreateApplicationDto } from './dto/application.dto';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Request } from 'express';
 
-@ApiTags('Вакансии и резюме')
-@ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard)
+@ApiTags('Отклики на вакансии')
 @Controller('applications')
 export class ApplicationController {
   constructor(
@@ -29,75 +27,47 @@ export class ApplicationController {
     private readonly logger: CustomLogger,
   ) {}
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Подать отклик на вакансию (JWT после login)' })
   @Post()
-  @ApiOperation({ summary: 'Подать отклик на вакансию' })
   async create(
     @Body() dto: CreateApplicationDto,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
   ) {
-    this.logger.debug(
-      `[CONTROLLER] Create application userId=${user.id}`,
-      refId,
-    );
-    return await this.applicationService.create(dto, user.id, refId);
+    this.logger.debug(`[CONTROLLER] Create application`, refId);
+    const candidateId = Number(req.user?.id);
+    return await this.applicationService.create(dto, candidateId, refId);
   }
 
   @Get()
-  async findAll(
-    @CurrentUser() user: { id: number; role: string },
-    @RefId() refId: string,
-  ) {
-    this.logger.debug(
-      `[CONTROLLER] Get all applications userId=${user.id}`,
-      refId,
-    );
-    return await this.applicationService.findAll(user.id, refId);
+  async findAll(@RefId() refId: string) {
+    return await this.applicationService.findAll(refId);
   }
 
   @Get(':id')
-  async findById(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: { id: number; role: string },
-    @RefId() refId: string,
-  ) {
-    this.logger.debug(
-      `[CONTROLLER] Get application id=${id}, userId=${user.id}`,
-      refId,
-    );
-    return await this.applicationService.findById(id, user.id, refId);
+  async findById(@Param('id') id: number, @RefId() refId: string) {
+    return await this.applicationService.findById(id, refId);
   }
 
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: ApplicationStatus,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
   ) {
     this.logger.debug(
-      `[CONTROLLER] Update status id=${id}, userId=${user.id}`,
+      `[CONTROLLER] Update status for application ${id}`,
       refId,
     );
-    return await this.applicationService.updateStatus(
-      id,
-      status,
-      user.id,
-      refId,
-    );
+    return await this.applicationService.updateStatus(id, status, refId);
   }
 
   @Delete(':id')
-  async remove(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: { id: number; role: string },
-    @RefId() refId: string,
-  ) {
-    this.logger.debug(
-      `[CONTROLLER] Withdraw application id=${id}, userId=${user.id}`,
-      refId,
-    );
-    await this.applicationService.remove(id, user.id, refId);
+  async remove(@Param('id', ParseIntPipe) id: number, @RefId() refId: string) {
+    this.logger.debug(`[CONTROLLER] Withdraw application ${id}`, refId);
+    await this.applicationService.remove(id, refId);
     return { message: 'Application successfully withdrawn' };
   }
 }

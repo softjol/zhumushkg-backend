@@ -4,22 +4,20 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { VacancyService } from './vacancy.service';
 import { CreateVacancyDto } from './dto/vacancy.dto';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { RefId } from '../../decorators/ref.decorator';
-import { CurrentUser } from '../../decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Request } from 'express';
 
-@ApiTags('Вакансии')
-@ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard)
+@ApiTags('Вакансии и резюме')
 @Controller('vacancy')
 export class VacancyController {
   constructor(
@@ -27,48 +25,60 @@ export class VacancyController {
     private readonly logger: CustomLogger,
   ) {}
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Создать вакансию (JWT после login)' })
   @Post()
   async createVacancy(
     @Body() vacancyData: CreateVacancyDto,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
   ) {
-    this.logger.debug(`[CONTROLLER] create vacancy userId=${user.id}`, refId);
+    this.logger.debug(
+      `[CONTROLLER] create vacancy ${JSON.stringify(vacancyData)}`,
+      refId,
+    );
+
     try {
+      const userId = Number(req.user?.id);
+      vacancyData.user_id = userId;
       const vacancy = await this.vacancyService.createVacancy(
         vacancyData,
         refId,
       );
-      this.logger.debug(
-        `[CONTROLLER] create vacancy SUCCESS userId=${user.id}`,
-        refId,
-      );
+
       return vacancy;
     } catch (error) {
       this.logger.error(
-        `[ERROR] create vacancy userId=${user.id}: ${JSON.stringify(error)}`,
+        `[ERROR] create vacancy ${JSON.stringify(error)}`,
         refId,
       );
       throw error;
     }
   }
 
-  @Get()
-  async getAllVacancy(
-    @CurrentUser() user: { id: number; role: string },
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Мои вакансии (JWT)' })
+  @Get('my')
+  async myVacancies(
     @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
   ) {
-    this.logger.debug(`[CONTROLLER] get all vacancy userId=${user.id}`, refId);
+    const userId = Number(req.user?.id);
+    return await this.vacancyService.getMyVacancies(userId, refId);
+  }
+
+  @Get()
+  async getAllVacancy(@RefId() refId: string) {
+    this.logger.debug(`[CONTROLLER] get all vacancy`, refId);
     try {
       const vacancy = await this.vacancyService.getAllVacancy(refId);
-      this.logger.debug(
-        `[CONTROLLER] get all vacancy SUCCESS userId=${user.id}`,
-        refId,
-      );
+
       return vacancy;
     } catch (error) {
       this.logger.error(
-        `[ERROR] get all vacancy userId=${user.id}: ${JSON.stringify(error)}`,
+        `[ERROR] get all  vacancy ${JSON.stringify(error)}`,
         refId,
       );
       throw error;
@@ -76,25 +86,15 @@ export class VacancyController {
   }
 
   @Get(':id')
-  async getByIdVacancy(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: { id: number; role: string },
-    @RefId() refId: string,
-  ) {
-    this.logger.debug(
-      `[CONTROLLER] get by id vacancy id=${id}, userId=${user.id}`,
-      refId,
-    );
+  async getByIdVacancy(@Param('id') id: number, @RefId() refId: string) {
+    this.logger.debug(`[CONTROLLER] get by id vacancy`, refId);
     try {
       const vacancy = await this.vacancyService.getByIdVacancy(id, refId);
-      this.logger.debug(
-        `[CONTROLLER] get by id vacancy SUCCESS id=${id}, userId=${user.id}`,
-        refId,
-      );
+
       return vacancy;
     } catch (error) {
       this.logger.error(
-        `[ERROR] get by id vacancy id=${id}, userId=${user.id}: ${JSON.stringify(error)}`,
+        `[ERROR] get by id vacancy ${JSON.stringify(error)}`,
         refId,
       );
       throw error;
@@ -102,25 +102,15 @@ export class VacancyController {
   }
 
   @Delete(':id')
-  async removeByIdVacancy(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: { id: number; role: string },
-    @RefId() refId: string,
-  ) {
-    this.logger.debug(
-      `[CONTROLLER] remove by id vacancy id=${id}, userId=${user.id}`,
-      refId,
-    );
+  async removeByIdVacancy(@Param('id') id: number, @RefId() refId: string) {
+    this.logger.debug(`[CONTROLLER] remove by id vacancy`, refId);
     try {
       const vacancy = await this.vacancyService.removeVacancy(id, refId);
-      this.logger.debug(
-        `[CONTROLLER] remove by id vacancy SUCCESS id=${id}, userId=${user.id}`,
-        refId,
-      );
+
       return vacancy;
     } catch (error) {
       this.logger.error(
-        `[ERROR] remove by id vacancy id=${id}, userId=${user.id}: ${JSON.stringify(error)}`,
+        `[ERROR] remove by id vacancy ${JSON.stringify(error)}`,
         refId,
       );
       throw error;
@@ -129,31 +119,22 @@ export class VacancyController {
 
   @Patch(':id')
   async updateVacancy(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: number,
     @Body() vacancyData: CreateVacancyDto,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
   ) {
-    this.logger.debug(
-      `[CONTROLLER] update vacancy id=${id}, userId=${user.id}`,
-      refId,
-    );
+    this.logger.debug(`[CONTROLLER]  update by id vacancy SUCCESS`, refId);
+
     try {
       const vacancy = await this.vacancyService.updateVacancy(
         id,
         vacancyData,
         refId,
       );
-      this.logger.debug(
-        `[CONTROLLER] update vacancy SUCCESS id=${id}, userId=${user.id}`,
-        refId,
-      );
+
       return vacancy;
     } catch (error) {
-      this.logger.error(
-        `[ERROR] update vacancy id=${id}, userId=${user.id}: ${JSON.stringify(error)}`,
-        refId,
-      );
+      this.logger.error(`[ERROR]  update by id vacancy`, refId);
       throw error;
     }
   }

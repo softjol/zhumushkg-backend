@@ -7,21 +7,23 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ResumeService } from './resume.service';
 import { ResumeResponseService } from './resume-response/resume-response.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateResumeDto } from './dto/resume.dto';
 import { RefId } from '../../decorators/ref.decorator';
-import { CurrentUser } from '../../decorators/current-user.decorator';
-import { UpdateResumeResponseStatusDto } from './dto/resume-response.dto';
+import {
+  CreateResumeResponseDto,
+  UpdateResumeResponseStatusDto,
+} from './dto/resume-response.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Request } from 'express';
 
-@ApiTags('Резюме')
-@ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard)
+@ApiTags('Resume')
 @Controller('resume')
 export class ResumeController {
   constructor(
@@ -32,40 +34,48 @@ export class ResumeController {
 
   // ─── RESUME CRUD ───────────────────────────────────
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Создать резюме (JWT после login)' })
   @Post()
   async createResume(
     @Body() resumeData: CreateResumeDto,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
   ) {
-    this.logger.debug(`[CONTROLLER] create resume userId=${user.id}`, refId);
+    this.logger.debug(`[CONTROLLER] create resume`, refId);
     try {
+      const userId = Number(req.user?.id);
+      resumeData.user_id = userId;
       const resume = await this.resumeService.createResume(resumeData, refId);
-      this.logger.debug(
-        `[CONTROLLER] create resume SUCCESS userId=${user.id}`,
-        refId,
-      );
+      this.logger.debug(`[CONTROLLER] create resume SUCCESS`, refId);
       return resume;
     } catch (error) {
-      this.logger.error(
-        `[CONTROLLER] error creating resume userId=${user.id}: ${JSON.stringify(error)}`,
-        refId,
-      );
+      this.logger.error(`[CONTROLLER] error creating resume: ${error}`, refId);
       throw error;
     }
   }
 
-  @Get()
-  async getAllResume(
-    @CurrentUser() user: { id: number; role: string },
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Мои резюме (JWT)' })
+  @Get('my')
+  async myResumes(
     @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
   ) {
-    this.logger.debug(`[CONTROLLER] get all resume userId=${user.id}`, refId);
+    const userId = Number(req.user?.id);
+    return await this.resumeService.getMyResumes(userId, refId);
+  }
+
+  @Get()
+  async getAllResume(@RefId() refId: string) {
+    this.logger.debug(`[CONTROLLER] get all resume`, refId);
     try {
       return await this.resumeService.getAllResume(refId);
     } catch (error) {
       this.logger.error(
-        `[CONTROLLER] error getting all resume userId=${user.id}: ${JSON.stringify(error)}`,
+        `[CONTROLLER] error getting all resume: ${error}`,
         refId,
       );
       throw error;
@@ -75,18 +85,14 @@ export class ResumeController {
   @Get(':id')
   async getResumeById(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
   ) {
-    this.logger.debug(
-      `[CONTROLLER] get resume by id=${id}, userId=${user.id}`,
-      refId,
-    );
+    this.logger.debug(`[CONTROLLER] get resume by id ${id}`, refId);
     try {
       return await this.resumeService.getResumeById(id, refId);
     } catch (error) {
       this.logger.error(
-        `[CONTROLLER] error getting resume id=${id}, userId=${user.id}: ${JSON.stringify(error)}`,
+        `[CONTROLLER] error getting resume by id ${id}: ${error}`,
         refId,
       );
       throw error;
@@ -96,23 +102,16 @@ export class ResumeController {
   @Delete(':id')
   async removeResume(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
   ) {
-    this.logger.debug(
-      `[CONTROLLER] remove resume id=${id}, userId=${user.id}`,
-      refId,
-    );
+    this.logger.debug(`[CONTROLLER] remove resume by id ${id}`, refId);
     try {
       const resume = await this.resumeService.removeResume(id, refId);
-      this.logger.debug(
-        `[CONTROLLER] remove resume SUCCESS id=${id}, userId=${user.id}`,
-        refId,
-      );
+      this.logger.debug(`[CONTROLLER] remove resume SUCCESS id ${id}`, refId);
       return resume;
     } catch (error) {
       this.logger.error(
-        `[CONTROLLER] error remove resume id=${id}, userId=${user.id}: ${JSON.stringify(error)}`,
+        `[CONTROLLER] error remove resume ${id}: ${error}`,
         refId,
       );
       throw error;
@@ -123,61 +122,51 @@ export class ResumeController {
   async updateResume(
     @Param('id', ParseIntPipe) id: number,
     @Body() resumeData: CreateResumeDto,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
   ) {
-    this.logger.debug(
-      `[CONTROLLER] update resume id=${id}, userId=${user.id}`,
-      refId,
-    );
+    this.logger.debug(`[CONTROLLER] update resume ${id}`, refId);
     try {
       const resume = await this.resumeService.updateResume(
         id,
         resumeData,
         refId,
       );
-      this.logger.debug(
-        `[CONTROLLER] update resume SUCCESS id=${id}, userId=${user.id}`,
-        refId,
-      );
+      this.logger.debug(`[CONTROLLER] update resume SUCCESS id ${id}`, refId);
       return resume;
     } catch (error) {
       this.logger.error(
-        `[CONTROLLER] error update resume id=${id}, userId=${user.id}: ${JSON.stringify(error)}`,
+        `[CONTROLLER] error update resume ${id}: ${error}`,
         refId,
       );
       throw error;
     }
   }
 
-  // ─── RESUME RESPONSE ───────────────────────────────
+  // RESUME RESPONSE
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Отклик на резюме (JWT после login)' })
   @Post(':id/response')
   async createResponse(
     @Param('id', ParseIntPipe) resumeId: number,
-    @CurrentUser() user: { id: number; role: string },
+    @Body() dto: CreateResumeResponseDto,
     @RefId() refId: string,
   ) {
     this.logger.debug(
-      `[CONTROLLER] create response resumeId=${resumeId}, employerId=${user.id}`,
+      `[CONTROLLER] create response resumeId: ${resumeId} employerId: ${dto.employerId}`,
       refId,
     );
     try {
       const response = await this.resumeResponseService.createResponse(
-        user.id, // employerId из JWT
+        dto.employerId,
         resumeId,
         refId,
       );
-      this.logger.debug(
-        `[CONTROLLER] create response SUCCESS resumeId=${resumeId}, employerId=${user.id}`,
-        refId,
-      );
+      this.logger.debug(`[CONTROLLER] create response SUCCESS`, refId);
       return response;
     } catch (error) {
-      this.logger.error(
-        `[CONTROLLER] error create response resumeId=${resumeId}, employerId=${user.id}: ${JSON.stringify(error)}`,
-        refId,
-      );
+      this.logger.error(`[CONTROLLER] error create response: ${error}`, refId);
       throw error;
     }
   }
@@ -185,11 +174,10 @@ export class ResumeController {
   @Get('responses/:id')
   async getResponsesByResume(
     @Param('id', ParseIntPipe) resumeId: number,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
   ) {
     this.logger.debug(
-      `[CONTROLLER] get responses by resumeId=${resumeId}, userId=${user.id}`,
+      `[CONTROLLER] get responses by resumeId: ${resumeId}`,
       refId,
     );
     try {
@@ -198,41 +186,41 @@ export class ResumeController {
         refId,
       );
       this.logger.debug(
-        `[CONTROLLER] get responses by resumeId SUCCESS resumeId=${resumeId}`,
+        `[CONTROLLER] get responses by resumeId SUCCESS`,
         refId,
       );
       return responses;
     } catch (error) {
       this.logger.error(
-        `[CONTROLLER] error get responses by resumeId=${resumeId}, userId=${user.id}: ${JSON.stringify(error)}`,
+        `[CONTROLLER] error get responses by resume: ${error}`,
         refId,
       );
       throw error;
     }
   }
 
-  @Get('employer/responses')
+  @Get('employer/:id/responses')
   async getResponsesByEmployer(
-    @CurrentUser() user: { id: number; role: string },
+    @Param('id', ParseIntPipe) employerId: number,
     @RefId() refId: string,
   ) {
     this.logger.debug(
-      `[CONTROLLER] get responses by employerId=${user.id}`,
+      `[CONTROLLER] get responses by employerId: ${employerId}`,
       refId,
     );
     try {
       const responses = await this.resumeResponseService.getResponsesByEmployer(
-        user.id, // employerId из JWT
+        employerId,
         refId,
       );
       this.logger.debug(
-        `[CONTROLLER] get responses by employerId SUCCESS employerId=${user.id}`,
+        `[CONTROLLER] get responses by employerId SUCCESS`,
         refId,
       );
       return responses;
     } catch (error) {
       this.logger.error(
-        `[CONTROLLER] error get responses by employerId=${user.id}: ${JSON.stringify(error)}`,
+        `[CONTROLLER] error get responses by employer: ${error}`,
         refId,
       );
       throw error;
@@ -243,11 +231,10 @@ export class ResumeController {
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateResumeResponseStatusDto,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
   ) {
     this.logger.debug(
-      `[CONTROLLER] update status response id=${id}, status=${dto.status}, userId=${user.id}`,
+      `[CONTROLLER] update status response id: ${id} status: ${dto.status}`,
       refId,
     );
     try {
@@ -256,14 +243,11 @@ export class ResumeController {
         dto.status,
         refId,
       );
-      this.logger.debug(
-        `[CONTROLLER] update status SUCCESS id=${id}, userId=${user.id}`,
-        refId,
-      );
+      this.logger.debug(`[CONTROLLER] update status SUCCESS id: ${id}`, refId);
       return response;
     } catch (error) {
       this.logger.error(
-        `[CONTROLLER] error update status id=${id}, userId=${user.id}: ${JSON.stringify(error)}`,
+        `[CONTROLLER] error update status response ${id}: ${error}`,
         refId,
       );
       throw error;
@@ -273,26 +257,22 @@ export class ResumeController {
   @Delete('response/:id')
   async removeResponse(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: { id: number; role: string },
     @RefId() refId: string,
   ) {
-    this.logger.debug(
-      `[CONTROLLER] remove response id=${id}, userId=${user.id}`,
-      refId,
-    );
+    this.logger.debug(`[CONTROLLER] remove response id: ${id}`, refId);
     try {
       const response = await this.resumeResponseService.removeResponse(
         id,
         refId,
       );
       this.logger.debug(
-        `[CONTROLLER] remove response SUCCESS id=${id}, userId=${user.id}`,
+        `[CONTROLLER] remove response SUCCESS id: ${id}`,
         refId,
       );
       return response;
     } catch (error) {
       this.logger.error(
-        `[CONTROLLER] error remove response id=${id}, userId=${user.id}: ${JSON.stringify(error)}`,
+        `[CONTROLLER] error remove response ${id}: ${error}`,
         refId,
       );
       throw error;

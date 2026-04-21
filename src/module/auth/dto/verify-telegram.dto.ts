@@ -10,10 +10,9 @@ export class VerifyTelegramDto {
   phoneNumber!: string;
 
   @ApiProperty({
-    example: '123456',
+    example: '1234',
     description: 'Код подтверждения, полученный в Telegram',
   })
   @IsString()
   code!: string;
 }
-

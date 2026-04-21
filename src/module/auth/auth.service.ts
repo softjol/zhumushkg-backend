@@ -22,11 +22,6 @@ export class AuthService {
     );
 
     try {
-      // Проверка совпадения пароля и подтверждения пароля
-      if (userData.password !== userData.confirm_password) {
-        throw new HttpException(`Пароли не совпадают`, HttpStatus.BAD_REQUEST);
-      }
-
       const existingUser = await this.userService.findOneByPhoneNumber(
         userData.phoneNumber,
         refId,
@@ -77,8 +72,77 @@ export class AuthService {
     return this.userService.findByPhoneConfirmationToken(smsCode, refId);
   }
 
+  async findByPhoneAndConfirmationCode(
+    phoneNumber: string,
+    code: string,
+    refId: string,
+  ) {
+    return this.userService.findByPhoneAndSmsCode(phoneNumber, code, refId);
+  }
+
+  async confirmPhone(phoneNumber: string, code: string, refId: string) {
+    try {
+      const phone = phoneNumber.toString().trim();
+      const user = phone
+        ? await this.findByPhoneAndConfirmationCode(phoneNumber, code, refId)
+        : await this.findByConfirmationToken(code, refId);
+
+      if (!user) {
+        throw new HttpException(
+          'Неверный код или номер телефона',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      user.phoneConfirmed = true;
+      user.smsCode = null;
+
+      await this.save(user);
+      const payload = {
+        phoneNumber: user.phoneNumber,
+        id: user.id,
+        role: user.role.role,
+        phoneConfirmed: user.phoneConfirmed,
+        firstName: user.firstName,
+      };
+      return {
+        access_token: this.jwtService.sign(payload),
+      };
+    } catch (error) {
+      this.logger.error(
+        `[ERROR] Confirming phone for ${phoneNumber}: ${JSON.stringify(error)}`,
+        refId,
+      );
+      throw error;
+    }
+  }
+
   async save(user: UserEntity) {
     return this.userService.save(user);
+  }
+
+  async requestCode(phoneNumber: string, refId: string) {
+    this.logger.debug(`[SERVICE] requestCode for ${phoneNumber}`, refId);
+    const user = await this.userService.findOneByPhoneNumber(
+      phoneNumber,
+      refId,
+    );
+    if (!user) {
+      throw new HttpException(
+        'Пользователь с таким номером не найден',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    // Генерируем новый код и отправляем
+    const code = await this.userService.updateSmsCodeAndSend(
+      phoneNumber,
+      refId,
+    );
+    this.logger.debug(
+      `[SUCCESS] requestCode: code sent to ${phoneNumber}`,
+      refId,
+    );
+    return { message: 'Код подтверждения отправлен', smsCode: code };
   }
 
   async login(login: LoginDto, refId: string) {
@@ -87,40 +151,7 @@ export class AuthService {
       refId,
     );
     try {
-      const user = await this.userService.findOneByPhoneNumber(
-        login.phoneNumber,
-        refId,
-      );
-      if (!user) {
-        throw new HttpException('Пользователь не найден', HttpStatus.NOT_FOUND);
-      }
-
-      const passwordEqual = await bcrypt.compare(
-        login.password,
-        user?.password || '',
-      );
-      if (!passwordEqual) {
-        throw new HttpException('Неверный пароль', HttpStatus.UNAUTHORIZED);
-      }
-
-      if (!user.phoneConfirmed) {
-        throw new HttpException(
-          'Номер телефона не подтвержден',
-          HttpStatus.FORBIDDEN,
-        );
-      }
-
-      const payload = {
-        phoneNumber: user.phoneNumber,
-        id: user.id,
-        role: user.role.role,
-        phoneConfirmed: user.phoneConfirmed,
-        full_name: user.fullName,
-      };
-      this.logger.debug(`[SERVICE] login SUCCESS`, refId);
-      return {
-        access_token: this.jwtService.sign(payload),
-      };
+      return this.requestCode(login.phoneNumber, refId);
     } catch (error) {
       this.logger.error(
         `[ERROR] login with phoneNumber: ${JSON.stringify(error)}`,

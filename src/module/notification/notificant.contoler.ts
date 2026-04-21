@@ -4,28 +4,19 @@ import {
   Patch,
   Delete,
   Param,
+  ParseIntPipe,
   Sse,
   MessageEvent,
-  UseGuards,
+  Res,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiParam,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { ApiTags } from '@nestjs/swagger';
 import { NotificationService } from './notificant.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { RefId } from '../../decorators/ref.decorator';
-import { CurrentUser } from '../../decorators/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { NotificationParamDto } from './dto/notification-param.dto';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
-@ApiTags('Notifications')
-@ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard)
+@ApiTags('Уведомления')
 @Controller('notification')
 export class NotificationController {
   constructor(
@@ -33,94 +24,72 @@ export class NotificationController {
     private readonly logger: CustomLogger,
   ) {}
 
-  @Sse('stream')
-  @ApiOperation({ summary: 'SSE поток уведомлений для пользователя' })
+  // SSE подключение
+  @Sse('stream/:userId')
   stream(
-    @CurrentUser() user: { id: number; role: string },
+    @Param('userId', ParseIntPipe) userId: number,
   ): Observable<MessageEvent> {
-    const subject = this.notificationService.subscribe(user.id);
+    const subject = this.notificationService.subscribe(userId);
     return subject.pipe(map((data) => ({ data }) as MessageEvent));
   }
 
-  @Get('my')
-  @ApiOperation({ summary: 'Получить все уведомления пользователя' })
+  // Получить все уведомления
+  @Get('my/:userId')
   async getNotifications(
-    @CurrentUser() user: { id: number; role: string },
+    @Param('userId', ParseIntPipe) userId: number,
     @RefId() refId: string,
   ) {
     this.logger.debug(
-      `[CONTROLLER] get notifications userId=${user.id}`,
+      `[CONTROLLER] get notifications userId: ${userId}`,
       refId,
     );
     try {
       const notifications = await this.notificationService.getNotifications(
-        user.id,
+        userId,
         refId,
       );
-      this.logger.debug(
-        `[CONTROLLER] get notifications SUCCESS userId=${user.id}, count=${notifications.length}`,
-        refId,
-      );
+      this.logger.debug(`[CONTROLLER] get notifications SUCCESS`, refId);
       return notifications;
     } catch (error) {
       this.logger.error(
-        `[CONTROLLER] error get notifications userId=${user.id}: ${JSON.stringify(error)}`,
+        `[CONTROLLER] error get notifications: ${error}`,
         refId,
       );
       throw error;
     }
   }
 
+  // Пометить как прочитанное
   @Patch(':id/read')
-  @ApiOperation({ summary: 'Пометить уведомление как прочитанное' })
-  @ApiParam({ name: 'id', description: 'ID уведомления' })
   async markAsRead(
-    @Param() { id }: NotificationParamDto,
-    @CurrentUser() user: { id: number; role: string },
+    @Param('id', ParseIntPipe) id: number,
     @RefId() refId: string,
   ) {
-    this.logger.debug(
-      `[CONTROLLER] mark as read id=${id}, userId=${user.id}`,
-      refId,
-    );
+    this.logger.debug(`[CONTROLLER] mark as read id: ${id}`, refId);
     try {
-      await this.notificationService.markAsRead(id, user.id, refId);
-      this.logger.debug(
-        `[CONTROLLER] mark as read SUCCESS id=${id}, userId=${user.id}`,
-        refId,
-      );
+      await this.notificationService.markAsRead(id, refId);
+      this.logger.debug(`[CONTROLLER] mark as read SUCCESS`, refId);
       return { success: true };
     } catch (error) {
-      this.logger.error(
-        `[CONTROLLER] error mark as read id=${id}, userId=${user.id}: ${JSON.stringify(error)}`,
-        refId,
-      );
+      this.logger.error(`[CONTROLLER] error mark as read: ${error}`, refId);
       throw error;
     }
   }
 
+  // Удалить уведомление
   @Delete(':id')
-  @ApiOperation({ summary: 'Удалить уведомление' })
-  @ApiParam({ name: 'id', description: 'ID уведомления' })
   async removeNotification(
-    @Param() { id }: NotificationParamDto,
-    @CurrentUser() user: { id: number; role: string },
+    @Param('id', ParseIntPipe) id: number,
     @RefId() refId: string,
   ) {
-    this.logger.debug(
-      `[CONTROLLER] remove notification id=${id}, userId=${user.id}`,
-      refId,
-    );
+    this.logger.debug(`[CONTROLLER] remove notification id: ${id}`, refId);
     try {
-      await this.notificationService.removeNotification(id, user.id, refId);
-      this.logger.debug(
-        `[CONTROLLER] remove notification SUCCESS id=${id}, userId=${user.id}`,
-        refId,
-      );
+      await this.notificationService.removeNotification(id, refId);
+      this.logger.debug(`[CONTROLLER] remove notification SUCCESS`, refId);
       return { success: true };
     } catch (error) {
       this.logger.error(
-        `[CONTROLLER] error remove notification id=${id}, userId=${user.id}: ${JSON.stringify(error)}`,
+        `[CONTROLLER] error remove notification: ${error}`,
         refId,
       );
       throw error;

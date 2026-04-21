@@ -2,6 +2,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNumber, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreateVacancyDto {
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'ID пользователя, создавшего вакансию',
+  })
+  @IsNumber()
+  @IsOptional()
+  user_id?: number;
+
   @ApiProperty({ example: 'Разработка', description: 'Профессия' })
   @IsString()
   profession: string;

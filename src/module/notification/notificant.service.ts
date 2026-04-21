@@ -5,13 +5,6 @@ import { NotificationEntity } from '../database/entitis/notification.entitity';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { Subject } from 'rxjs';
 
-interface SseEvent {
-  data: {
-    title: string;
-    body: string;
-  };
-}
-
 @Injectable()
 export class NotificationService {
   constructor(
@@ -21,27 +14,18 @@ export class NotificationService {
   ) {}
 
   // Храним подключения юзеров
-  private clients = new Map<number, Set<Subject<SseEvent>>>();
+  private clients = new Map<number, Subject<any>>();
 
   // Подключить юзера к SSE
-  subscribe(userId: number): Subject<SseEvent> {
-    const subject = new Subject<SseEvent>();
-    if (!this.clients.has(userId)) {
-      this.clients.set(userId, new Set<Subject<SseEvent>>());
-    }
-    this.clients.get(userId)?.add(subject);
+  subscribe(userId: number): Subject<any> {
+    const subject = new Subject<any>();
+    this.clients.set(userId, subject);
     return subject;
   }
 
   // Отключить юзера
-  unsubscribe(userId: number, subject: Subject<SseEvent>) {
-    const subjects = this.clients.get(userId);
-    if (!subjects) return;
-    subjects.delete(subject);
-    subject.complete(); // закрываем поток
-    if (subjects.size === 0) {
-      this.clients.delete(userId);
-    }
+  unsubscribe(userId: number) {
+    this.clients.delete(userId);
   }
 
   async sendNotification(
@@ -72,7 +56,7 @@ export class NotificationService {
     // Шлём SSE если юзер подключен
     const client = this.clients.get(userId);
     if (client) {
-      client.forEach((subject) => subject.next({ data: { title, body } }));
+      client.next({ data: { title, body } });
       this.logger.debug(`[SERVICE] SSE sent to userId: ${userId}`, refId);
     }
   }
@@ -90,13 +74,10 @@ export class NotificationService {
     }
   }
 
-  async markAsRead(id: number, userId: number, refId: string) {
+  async markAsRead(id: number, refId: string) {
     this.logger.debug(`[SERVICE] mark as read id: ${id}`, refId);
     try {
-      await this.notificationRepository.update(
-        { id, userId },
-        { isRead: true },
-      );
+      await this.notificationRepository.update(id, { isRead: true });
       this.logger.debug(`[SERVICE] mark as read SUCCESS id: ${id}`, refId);
     } catch (error) {
       this.logger.error(`[ERROR] mark as read: ${error}`, refId);
@@ -104,10 +85,10 @@ export class NotificationService {
     }
   }
 
-  async removeNotification(id: number, userId: number, refId: string) {
+  async removeNotification(id: number, refId: string) {
     this.logger.debug(`[SERVICE] remove notification id: ${id}`, refId);
     try {
-      await this.notificationRepository.delete({ id, userId });
+      await this.notificationRepository.delete(id);
       this.logger.debug(
         `[SERVICE] remove notification SUCCESS id: ${id}`,
         refId,

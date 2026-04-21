@@ -16,11 +16,8 @@ export class UserEntity {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ type: 'varchar', length: 255 })
-  fullName!: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  email!: string;
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  firstName!: string;
 
   @Column({ type: 'varchar', nullable: true })
   phoneNumber!: string;
@@ -31,9 +28,6 @@ export class UserEntity {
   @Column({ type: 'varchar', nullable: true })
   smsCode!: string | null;
 
-  @Column({ type: 'varchar' })
-  password!: string;
-
   @ManyToOne(() => RoleEntity, (role) => role.user)
   role!: RoleEntity;
 
@@ -42,10 +36,4 @@ export class UserEntity {
 
   @OneToMany(() => ApplicationEntity, (application) => application.candidate)
   applications: ApplicationEntity[];
-
-  @Column({ type: 'varchar', nullable: true })
-  phoneConfirmationToken!: string | null;
-
-  @Column({ type: 'varchar', nullable: true })
-  fcmToken!: string | null;
 }

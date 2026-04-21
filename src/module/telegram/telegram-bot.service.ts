@@ -12,22 +12,21 @@ export class TelegramBotService implements OnModuleInit {
     const token = process.env.TELEGRAM_BOT_TOKEN;
 
     if (!token) {
-      // Если токен не задан, просто не инициализируем бота
       return;
     }
 
-    // Long polling несовместим с serverless (Vercel): ломает/вешает инвокацию.
-    if (
-      process.env.VERCEL === '1' &&
-      process.env.TELEGRAM_ENABLE_POLLING !== 'true'
-    ) {
-      return;
+    // Отправка сообщений работает без polling (HTTP к api.telegram.org).
+    // Long polling на Vercel по умолчанию выключен — иначе зависает инвокация.
+    const usePolling =
+      process.env.VERCEL !== '1' ||
+      process.env.TELEGRAM_ENABLE_POLLING === 'true';
+
+    this.bot = new TelegramBot(token, { polling: usePolling });
+
+    if (usePolling) {
+      this.setupStartHandler();
+      this.setupContactHandler();
     }
-
-    this.bot = new TelegramBot(token, { polling: true });
-
-    this.setupStartHandler();
-    this.setupContactHandler();
   }
 
   private setupStartHandler() {
@@ -71,12 +70,18 @@ export class TelegramBotService implements OnModuleInit {
     });
   }
 
+  /** Доступна ли отправка (есть токен и экземпляр бота). */
+  canSendMessages(): boolean {
+    return this.bot != null;
+  }
+
   async sendOtpCode(chatId: string, code: string) {
     if (!this.bot) {
-      throw new Error('Telegram bot не инициализирован');
+      throw new Error(
+        'Telegram bot не инициализирован (нет TELEGRAM_BOT_TOKEN)',
+      );
     }
 
     await this.bot.sendMessage(chatId, `🔐 Ваш код: ${code}`);
   }
 }
-

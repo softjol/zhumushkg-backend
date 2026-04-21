@@ -46,6 +46,22 @@ export class ResumeService {
     }
   }
 
+  async getMyResumes(userId: number, refId: string) {
+    this.logger.debug(`[SERVICE] get my resumes userId=${userId}`, refId);
+    try {
+      return await this.resumeRepository.find({
+        where: { user_id: userId },
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `[SERVICE] error getting my resumes userId=${userId}: ${error}`,
+        refId,
+      );
+      throw error;
+    }
+  }
+
   async getResumeById(id: number, refId: string) {
     this.logger.debug(`[SERVICE] get resume by id ${id}`, refId);
     try {

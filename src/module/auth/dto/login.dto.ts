@@ -8,13 +8,4 @@ export class LoginDto {
   })
   @IsString()
   phoneNumber!: string;
-
-  @ApiProperty({
-    example: 'password123',
-    description: 'Пароль пользователя',
-    minLength: 6,
-  })
-  @IsString()
-  @MinLength(6)
-  password!: string;
 }
