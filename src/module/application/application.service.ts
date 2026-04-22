@@ -76,6 +76,18 @@ export class ApplicationService {
     });
   }
 
+  async findMy(candidateId: number, refId: string) {
+    this.logger.debug(
+      `[SERVICE] find applications for candidateId=${candidateId}`,
+      refId,
+    );
+    return await this.applicationRepository.find({
+      where: { candidate_id: candidateId },
+      relations: ['vacancy', 'resume'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
   async findById(id: number, refId: string) {
     this.logger.debug(`[SERVICE] find application by id=${id}`, refId);
     return await this.applicationRepository.findOne({

@@ -99,14 +99,21 @@ export class ResumeController {
     }
   }
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Удалить резюме (JWT; свои отклики и связи удаляются вместе)',
+  })
   @Delete(':id')
   async removeResume(
     @Param('id', ParseIntPipe) id: number,
     @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
   ) {
     this.logger.debug(`[CONTROLLER] remove resume by id ${id}`, refId);
     try {
-      const resume = await this.resumeService.removeResume(id, refId);
+      const userId = Number(req.user?.id);
+      const resume = await this.resumeService.removeResume(id, userId, refId);
       this.logger.debug(`[CONTROLLER] remove resume SUCCESS id ${id}`, refId);
       return resume;
     } catch (error) {

@@ -1,10 +1,13 @@
 import {
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ResumeEntity } from '../database/entitis/resume.entity';
+import { ApplicationEntity } from '../database/entitis/application.entity';
+import { ResumeResponseEntity } from '../database/entitis/resume-response.entity';
 import { Repository } from 'typeorm';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateResumeDto } from './dto/resume.dto';
@@ -74,10 +77,16 @@ export class ResumeService {
       throw error;
     }
   }
-  async removeResume(id: number, refId: string): Promise<ResumeEntity> {
-    this.logger.debug(`[SERVICE] Attempting to remove resume ${id}`, refId);
+  async removeResume(
+    id: number,
+    userId: number,
+    refId: string,
+  ): Promise<ResumeEntity> {
+    this.logger.debug(
+      `[SERVICE] Attempting to remove resume ${id} by user ${userId}`,
+      refId,
+    );
 
-    // 1. Ищем запись перед удалением, чтобы убедиться, что она существует
     const resume = await this.resumeRepository.findOne({ where: { id } });
 
     if (!resume) {
@@ -85,15 +94,23 @@ export class ResumeService {
       throw new NotFoundException(`Resume with ID ${id} not found`);
     }
 
-    // 2. Удаляем (или используем softDelete, если нужно сохранить историю)
-    try {
-      await this.resumeRepository.remove(resume);
-      this.logger.debug(`[SERVICE] Resume ${id} successfully removed`, refId);
+    if (resume.user_id !== userId) {
+      throw new ForbiddenException('You can only delete your own resume');
+    }
 
-      // Возвращаем удаленный объект (или статус), как ожидает контроллер
+    try {
+      await this.resumeRepository.manager.transaction(async (manager) => {
+        await manager.delete(ApplicationEntity, { resume_id: id });
+        await manager.delete(ResumeResponseEntity, { resumeId: id });
+        await manager.delete(ResumeEntity, { id });
+      });
+      this.logger.debug(`[SERVICE] Resume ${id} successfully removed`, refId);
       return resume;
     } catch (error) {
-      this.logger.error(`[SERVICE] Failed to remove resume ${id}`, refId);
+      this.logger.error(
+        `[SERVICE] Failed to remove resume ${id}: ${error}`,
+        refId,
+      );
       throw new InternalServerErrorException(
         'Error occurred while deleting resume',
       );

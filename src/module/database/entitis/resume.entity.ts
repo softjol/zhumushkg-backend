@@ -11,6 +11,51 @@ import {
 import { UserEntity } from './user.entity';
 import { ApplicationEntity } from './application.entity';
 
+/** Одна запись опыта работы (см. WorkExperienceEntryDto). */
+export type ResumeWorkExperienceEntry = {
+  company: string;
+  position: string;
+  start_month: number;
+  start_year: number;
+  until_now: boolean;
+  end_month?: number | null;
+  end_year?: number | null;
+  description: string;
+};
+
+const resumeSalaryNetTransformer = {
+  to: (value: number | null | undefined) => value,
+  from: (value: string | null): number | null => {
+    if (value == null) return null;
+    return Math.trunc(Number(value));
+  },
+};
+
+/** Нормализует опыт: text/строка JSON → массив (legacy и jsonb). */
+const workExperienceTransformer = {
+  to: (value: ResumeWorkExperienceEntry[] | null | undefined) =>
+    value === undefined ? null : value,
+  from: (
+    value: string | ResumeWorkExperienceEntry[] | null | undefined,
+  ): ResumeWorkExperienceEntry[] | null => {
+    if (value == null) return null;
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      const t = value.trim();
+      if (!t) return null;
+      try {
+        const parsed = JSON.parse(t) as unknown;
+        return Array.isArray(parsed)
+          ? (parsed as ResumeWorkExperienceEntry[])
+          : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  },
+};
+
 @Entity('resumes')
 export class ResumeEntity {
   @PrimaryGeneratedColumn()
@@ -30,12 +75,21 @@ export class ResumeEntity {
   description: string;
 
   @Column({ nullable: true })
+  position: string;
+
+  @Column({ nullable: true })
   work_schedule: string;
 
   @Column({ nullable: true })
   payment_period: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: resumeSalaryNetTransformer,
+  })
   salary_net: number;
 
   @Column({ type: 'date', nullable: true })
@@ -50,8 +104,12 @@ export class ResumeEntity {
   @Column({ type: 'text', nullable: true })
   education: string;
 
-  @Column({ type: 'text', nullable: true })
-  work_experience: string;
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    transformer: workExperienceTransformer,
+  })
+  work_experience: ResumeWorkExperienceEntry[] | null;
 
   @Column({ type: 'simple-array', nullable: true })
   skills: string[];
