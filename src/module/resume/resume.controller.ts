@@ -149,7 +149,7 @@ export class ResumeController {
     }
   }
 
-  //RESUME RESPONSE
+  // RESUME RESPONSE
 
   // @ApiBearerAuth('access-token')
   // @UseGuards(JwtAuthGuard)
