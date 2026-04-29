@@ -6,6 +6,7 @@ import { UserEntity } from '../database/entitis/user.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
+import { SwitchRoleDto } from '../user/dto/switch-role.dto';
 
 @Injectable()
 export class AuthService {
@@ -57,7 +58,6 @@ export class AuthService {
     try {
       // Здесь должна быть логика получения профиля пользователя
       this.logger.debug(`[SUCCESS] Get profile`, refId);
-      console.log(id);
 
       const user = await this.userService.findOneById(id, refId);
 
@@ -93,6 +93,12 @@ export class AuthService {
           HttpStatus.BAD_REQUEST,
         );
       }
+      if (user.isBanned) {
+        throw new HttpException(
+          'Пользователь заблокирован',
+          HttpStatus.FORBIDDEN,
+        );
+      }
 
       user.phoneConfirmed = true;
       user.smsCode = null;
@@ -104,6 +110,7 @@ export class AuthService {
         role: user.role.role,
         phoneConfirmed: user.phoneConfirmed,
         firstName: user.firstName,
+        isBanned: user.isBanned,
       };
       return {
         access_token: this.jwtService.sign(payload),
@@ -143,6 +150,26 @@ export class AuthService {
       refId,
     );
     return { message: 'Код подтверждения отправлен', smsCode: code };
+  }
+
+  async switchRole(userId: number, dto: SwitchRoleDto, refId: string) {
+    this.logger.debug(
+      `[SERVICE] switchRole userId=${userId} -> ${dto.role}`,
+      refId,
+    );
+    const user = await this.userService.switchUserRole(userId, dto.role, refId);
+    const payload = {
+      phoneNumber: user.phoneNumber,
+      id: user.id,
+      role: user.role.role,
+      phoneConfirmed: user.phoneConfirmed,
+      firstName: user.firstName,
+      isBanned: user.isBanned,
+    };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user,
+    };
   }
 
   async login(login: LoginDto, refId: string) {

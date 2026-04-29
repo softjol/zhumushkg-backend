@@ -4,15 +4,21 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateUserDto } from '../user/dto/user.dto';
 import { RefId } from '../../decorators/ref.decorator';
 import { LoginDto } from './dto/login.dto';
 import { ConfirmPhoneDto } from './dto/confirm-phone.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { SwitchRoleDto } from '../user/dto/switch-role.dto';
+import { Request } from 'express';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -69,6 +75,33 @@ export class AuthController {
       return result;
     } catch (error) {
       this.logger.error(`[CONTROLLER] confirm phone failed: ${error}`, refId);
+      throw error;
+    }
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Переключить роль (соискатель ↔ работодатель). Возвращает новый access_token.',
+  })
+  @Patch('switch-role')
+  async switchRole(
+    @Body() dto: SwitchRoleDto,
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
+  ) {
+    this.logger.debug(`[CONTROLLER] switch-role`, refId);
+    try {
+      const userId = Number(req.user?.id);
+      if (!userId) {
+        throw new BadRequestException('Некорректный пользователь в токене');
+      }
+      const result = await this.authService.switchRole(userId, dto, refId);
+      this.logger.debug(`[CONTROLLER] switch-role SUCCESS`, refId);
+      return result;
+    } catch (error) {
+      this.logger.error(`[CONTROLLER] switch-role failed: ${error}`, refId);
       throw error;
     }
   }

@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -84,7 +89,12 @@ export class ResumeResponseService {
     }
   }
 
-  async updateStatus(id: number, status: ResumeResponseStatus, refId: string) {
+  async updateStatus(
+    id: number,
+    status: ResumeResponseStatus,
+    actingUserId: number,
+    refId: string,
+  ) {
     this.logger.debug(
       `[SERVICE] update status response id: ${id} status: ${status}`,
       refId,
@@ -97,6 +107,12 @@ export class ResumeResponseService {
 
       if (!response) {
         throw new HttpException('Отклик не найден', HttpStatus.NOT_FOUND);
+      }
+
+      if (response.resume.user_id !== actingUserId) {
+        throw new ForbiddenException(
+          'Только владелец резюме может менять статус отклика работодателя',
+        );
       }
 
       response.status = status;

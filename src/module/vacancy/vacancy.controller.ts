@@ -6,18 +6,22 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { VacancyService } from './vacancy.service';
 import { CreateVacancyDto } from './dto/vacancy.dto';
+import { ListVacancyQueryDto } from './dto/list-vacancy-query.dto';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { RefId } from '../../decorators/ref.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
 
 @ApiTags('Вакансии и резюме')
+@ApiBearerAuth('access-token')
+@UseGuards(JwtAuthGuard)
 @Controller('vacancy')
 export class VacancyController {
   constructor(
@@ -69,11 +73,27 @@ export class VacancyController {
     return await this.vacancyService.getMyVacancies(userId, refId);
   }
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Кандидаты по моей вакансии (JWT)' })
+  @Get('my/:id/candidates')
+  async getMyVacancyCandidates(
+    @Param('id') id: number,
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
+  ) {
+    const userId = Number(req.user?.id);
+    return await this.vacancyService.getVacancyCandidates(id, userId, refId);
+  }
+
   @Get()
-  async getAllVacancy(@RefId() refId: string) {
+  async getAllVacancy(
+    @RefId() refId: string,
+    @Query() query: ListVacancyQueryDto,
+  ) {
     this.logger.debug(`[CONTROLLER] get all vacancy`, refId);
     try {
-      const vacancy = await this.vacancyService.getAllVacancy(refId);
+      const vacancy = await this.vacancyService.getAllVacancy(refId, query);
 
       return vacancy;
     } catch (error) {
@@ -102,10 +122,19 @@ export class VacancyController {
   }
 
   @Delete(':id')
-  async removeByIdVacancy(@Param('id') id: number, @RefId() refId: string) {
+  async removeByIdVacancy(
+    @Param('id') id: number,
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
+  ) {
     this.logger.debug(`[CONTROLLER] remove by id vacancy`, refId);
     try {
-      const vacancy = await this.vacancyService.removeVacancy(id, refId);
+      const userId = Number(req.user?.id);
+      const vacancy = await this.vacancyService.removeVacancy(
+        id,
+        userId,
+        refId,
+      );
 
       return vacancy;
     } catch (error) {
@@ -122,13 +151,16 @@ export class VacancyController {
     @Param('id') id: number,
     @Body() vacancyData: CreateVacancyDto,
     @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
   ) {
     this.logger.debug(`[CONTROLLER]  update by id vacancy SUCCESS`, refId);
 
     try {
+      const userId = Number(req.user?.id);
       const vacancy = await this.vacancyService.updateVacancy(
         id,
         vacancyData,
+        userId,
         refId,
       );
 

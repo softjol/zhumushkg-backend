@@ -94,4 +94,12 @@ export class CreateVacancyDto {
   @ApiProperty({ example: 5, description: 'ID компании из справочника' })
   @IsString()
   company: string;
+
+  @ApiPropertyOptional({
+    example: 'Мы продуктовая компания, развиваем HR платформу.',
+    description: 'Описание компании',
+  })
+  @IsString()
+  @IsOptional()
+  company_description?: string;
 }

@@ -4,6 +4,7 @@ import { DatabaseService } from './dababase.service';
 import { DatabaseController } from './database.controller';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -14,8 +15,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       ssl: { rejectUnauthorized: false },
       migrations: ['dist/migrations/*.js'],
       autoLoadEntities: true,
-      synchronize: false,
+      synchronize: true,
     }),
+    AuthModule,
   ],
   controllers: [DatabaseController],
   providers: [DatabaseService, CustomLogger],

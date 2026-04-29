@@ -31,7 +31,6 @@ export default [
     },
     rules: {
       'prettier/prettier': 'error',
-      // Temporary relaxations for legacy code; we'll tighten these module-by-module.
       'no-useless-catch': 'off',
       'no-case-declarations': 'off',
       'no-empty': 'off',

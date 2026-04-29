@@ -10,6 +10,7 @@ import { RoleEntity } from './role.entity';
 import { EmailVerificationEntity } from './emailVerif.entity';
 import { ResumeEntity } from './resume.entity';
 import { ApplicationEntity } from './application.entity';
+import { VacancyEntity } from './vacancy.entity';
 
 @Entity('user')
 export class UserEntity {
@@ -28,11 +29,17 @@ export class UserEntity {
   @Column({ type: 'varchar', nullable: true })
   smsCode!: string | null;
 
+  @Column({ name: 'is_banned', type: 'boolean', default: false })
+  isBanned!: boolean;
+
   @ManyToOne(() => RoleEntity, (role) => role.user)
   role!: RoleEntity;
 
   @OneToMany(() => ResumeEntity, (resume) => resume.user)
   resumes!: ResumeEntity[];
+
+  @OneToMany(() => VacancyEntity, (vacancy) => vacancy.user)
+  vacancies!: VacancyEntity[];
 
   @OneToMany(() => ApplicationEntity, (application) => application.candidate)
   applications: ApplicationEntity[];

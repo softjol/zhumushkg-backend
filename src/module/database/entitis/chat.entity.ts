@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { UserEntity } from './user.entity';
 import { ApplicationEntity } from './application.entity';
-import { VacancyEntity } from './vacancy.enity';
+import { VacancyEntity } from './vacancy.entity';
 
 export enum ChatSource {
   APPLICATION = 'APPLICATION', // кандидат откликнулся → HR принял

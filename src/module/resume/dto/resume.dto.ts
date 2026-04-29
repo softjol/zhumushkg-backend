@@ -92,6 +92,15 @@ export class CreateResumeDto {
   @IsOptional()
   position?: string;
 
+  @ApiProperty({
+    example: 'IT',
+    required: false,
+    description: 'Категория / сфера (для фильтра в каталоге)',
+  })
+  @IsString()
+  @IsOptional()
+  category?: string;
+
   @ApiProperty({ example: 'Полный день', required: false })
   @IsString()
   @IsOptional()

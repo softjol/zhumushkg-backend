@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, Length, IsOptional } from 'class-validator';
+import { IsEnum } from 'class-validator';
+import { AppUserRole } from '../../../common/constants/app-user-role';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -17,4 +19,15 @@ export class CreateUserDto {
   })
   @IsString()
   phoneNumber!: string;
+
+  @ApiProperty({
+    required: false,
+    enum: AppUserRole,
+    example: AppUserRole.JOB_SEEKER,
+    description:
+      'Роль при регистрации: JOB_SEEKER (соискатель) или EMPLOYER (работодатель). По умолчанию JOB_SEEKER.',
+  })
+  @IsOptional()
+  @IsEnum(AppUserRole)
+  role?: AppUserRole;
 }

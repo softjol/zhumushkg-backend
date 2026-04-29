@@ -14,16 +14,24 @@ export class JwtAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     const header = req.headers?.authorization as string | undefined;
     if (!header?.startsWith('Bearer ')) {
-      throw new UnauthorizedException(
-        'Нужен заголовок Authorization: Bearer <token>. Сначала подтвердите телефон (POST /auth/confirm-phone), затем войдите (POST /auth/login).',
-      );
+      throw new UnauthorizedException('Вы не авторизованы');
     }
     const token = header.slice(7).trim();
+    let payload: Record<string, any>;
     try {
-      req.user = this.jwtService.verify(token);
-      return true;
-    } catch {
-      throw new UnauthorizedException('Неверный или истёкший токен');
+      const jwtSecret = process.env.JWT_SECRET || 'SECRET_KEY';
+      payload = this.jwtService.verify(token, { secret: jwtSecret });
+    } catch (error: any) {
+      throw new UnauthorizedException(
+        `Неверный или истёкший токен: ${error?.message ?? 'verify failed'}`,
+      );
     }
+
+    if (payload?.isBanned === true) {
+      throw new UnauthorizedException('Пользователь заблокирован');
+    }
+
+    req.user = payload;
+    return true;
   }
 }

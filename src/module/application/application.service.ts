@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -69,8 +70,14 @@ export class ApplicationService {
     return await this.applicationRepository.save(application);
   }
 
-  async findAll(refId: string) {
-    this.logger.debug(`[SERVICE] Creating application for vacancy`, refId);
+  async findAll(actingRole: string | undefined, refId: string) {
+    this.logger.debug(`[SERVICE] findAll applications`, refId);
+    if (actingRole !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Только администратор может видеть все отклики',
+      );
+    }
+
     return await this.applicationRepository.find({
       relations: ['vacancy', 'candidate', 'resume'],
     });
@@ -88,25 +95,52 @@ export class ApplicationService {
     });
   }
 
-  async findById(id: number, refId: string) {
+  async findById(
+    id: number,
+    actingUserId: number,
+    actingRole: string | undefined,
+    refId: string,
+  ) {
     this.logger.debug(`[SERVICE] find application by id=${id}`, refId);
-    return await this.applicationRepository.findOne({
+    const application = await this.applicationRepository.findOne({
       where: { id },
       relations: ['vacancy', 'candidate', 'resume'],
     });
+
+    if (!application) {
+      throw new NotFoundException(`Application #${id} not found`);
+    }
+
+    if (actingRole !== 'ADMIN' && application.candidate_id !== actingUserId) {
+      throw new ForbiddenException('Можно смотреть только свои отклики');
+    }
+
+    return application;
   }
 
-  async updateStatus(id: number, status: ApplicationStatus, refId: string) {
+  async updateStatus(
+    id: number,
+    status: ApplicationStatus,
+    employerUserId: number,
+    refId: string,
+  ) {
     this.logger.debug(
       `[SERVICE] update application status id=${id} status=${status}`,
       refId,
     );
     const application = await this.applicationRepository.findOne({
       where: { id },
+      relations: ['vacancy'],
     });
 
     if (!application) {
       throw new NotFoundException(`Application #${id} not found`);
+    }
+
+    if (application.vacancy.user_id !== employerUserId) {
+      throw new ForbiddenException(
+        'Только автор вакансии может менять статус отклика',
+      );
     }
 
     if (application.status === ApplicationStatus.HIRED) {
@@ -119,7 +153,12 @@ export class ApplicationService {
     return await this.applicationRepository.save(application);
   }
 
-  async remove(id: number, refId: string): Promise<void> {
+  async remove(
+    id: number,
+    actingUserId: number,
+    actingRole: string | undefined,
+    refId: string,
+  ): Promise<void> {
     this.logger.debug(`[SERVICE] remove application id=${id}`, refId);
     const application = await this.applicationRepository.findOne({
       where: { id },
@@ -127,6 +166,10 @@ export class ApplicationService {
 
     if (!application) {
       throw new NotFoundException(`Application #${id} not found`);
+    }
+
+    if (actingRole !== 'ADMIN' && application.candidate_id !== actingUserId) {
+      throw new ForbiddenException('Можно удалять только свои отклики');
     }
 
     if (

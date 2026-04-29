@@ -1,8 +1,24 @@
-import { Controller, Delete, Param } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Param,
+  Patch,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
 import { RefId } from 'src/decorators/ref.decorator';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Request } from 'express';
+import { AppUserRole } from '../../common/constants/app-user-role';
+import { BanUserDto } from './dto/ban-user.dto';
 
+@ApiTags('User/Admin')
 @Controller('user')
 export class UserController {
   constructor(
@@ -10,8 +26,74 @@ export class UserController {
     private logger: CustomLogger,
   ) {}
 
+  private assertAdmin(req: Request & { user?: { role?: string } }) {
+    const role = req.user?.role;
+    this.logger.debug(
+      `[CONTROLLER] Checking admin role, user role: ${role}`,
+      'assertAdmin',
+    );
+    if (role !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Только администратор может выполнять это действие',
+      );
+    }
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'ADMIN: все соискатели с их резюме' })
+  @Get('admin/job-seekers-with-resumes')
+  async getAllSeekersWithResumes(
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { role?: string } },
+  ) {
+    this.assertAdmin(req);
+    this.logger.debug(`[CONTROLLER] get all job seekers with resumes`, refId);
+    return await this.userService.getUsersByRoleWithRelations(
+      AppUserRole.JOB_SEEKER,
+      refId,
+    );
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'ADMIN: все работодатели с их вакансиями' })
+  @Get('admin/employers-with-vacancies')
+  async getAllEmployersWithVacancies(
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { role?: string } },
+  ) {
+    this.assertAdmin(req);
+    return await this.userService.getUsersByRoleWithRelations(
+      AppUserRole.EMPLOYER,
+      refId,
+    );
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'ADMIN: бан/разбан пользователя' })
+  @Patch('admin/:id/ban')
+  async banUser(
+    @Param('id') id: number,
+    @Body() dto: BanUserDto,
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { role?: string } },
+  ) {
+    this.assertAdmin(req);
+    return await this.userService.setBanStatus(id, dto.isBanned, refId);
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'ADMIN: удалить пользователя' })
   @Delete(':id')
-  async removeById(@Param('id') id: number, @RefId() refId: string) {
+  async removeById(
+    @Param('id') id: number,
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { role?: string } },
+  ) {
+    this.assertAdmin(req);
     this.logger.debug(`[CONTROLLER] remove user by id ${id}`, refId);
 
     try {

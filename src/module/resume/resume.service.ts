@@ -11,6 +11,7 @@ import { ResumeResponseEntity } from '../database/entitis/resume-response.entity
 import { Repository } from 'typeorm';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateResumeDto } from './dto/resume.dto';
+import { ListResumeQueryDto } from './dto/list-resume-query.dto';
 
 @Injectable()
 export class ResumeService {
@@ -39,10 +40,60 @@ export class ResumeService {
     }
   }
 
-  async getAllResume(refId: string) {
+  async getAllResume(refId: string, query: ListResumeQueryDto) {
     this.logger.debug(`[SERVICE] get all resume`, refId);
     try {
-      return await this.resumeRepository.find();
+      const qb = this.resumeRepository.createQueryBuilder('r');
+      if (query.category?.trim()) {
+        qb.andWhere('r.category = :category', {
+          category: query.category.trim(),
+        });
+      }
+      if (query.city?.trim()) {
+        qb.andWhere('r.city ILIKE :city', {
+          city: `%${query.city.trim()}%`,
+        });
+      }
+      if (query.position?.trim()) {
+        qb.andWhere('r.position ILIKE :position', {
+          position: `%${query.position.trim()}%`,
+        });
+      }
+      if (query.work_schedule?.trim()) {
+        qb.andWhere('r.work_schedule = :work_schedule', {
+          work_schedule: query.work_schedule.trim(),
+        });
+      }
+      if (
+        typeof query.salary_from === 'number' &&
+        !Number.isNaN(query.salary_from)
+      ) {
+        qb.andWhere('r.salary_net >= :salary_from', {
+          salary_from: query.salary_from,
+        });
+      }
+      if (
+        typeof query.salary_to === 'number' &&
+        !Number.isNaN(query.salary_to)
+      ) {
+        qb.andWhere('r.salary_net <= :salary_to', {
+          salary_to: query.salary_to,
+        });
+      }
+      if (query.experience_work?.trim()) {
+        qb.andWhere('CAST(r.work_experience AS text) ILIKE :experience_work', {
+          experience_work: `%${query.experience_work.trim()}%`,
+        });
+      }
+      if (query.search?.trim()) {
+        const s = `%${query.search.trim()}%`;
+        qb.andWhere(
+          '(r.position ILIKE :s OR r.description ILIKE :s OR r.city ILIKE :s OR r.education ILIKE :s OR r.personal_qualities ILIKE :s)',
+          { s },
+        );
+      }
+      qb.orderBy('r.createdAt', 'DESC');
+      return await qb.getMany();
     } catch (error) {
       this.logger.error(`[SERVICE] error getting all resume: ${error}`, refId);
       throw error;
@@ -123,6 +174,7 @@ export class ResumeService {
   async updateResume(
     id: number,
     resumeData: CreateResumeDto,
+    actingUserId: number,
     refId: string,
   ): Promise<ResumeEntity> {
     this.logger.debug(`[SERVICE] Attempting to update resume ${id}`, refId);
@@ -136,6 +188,10 @@ export class ResumeService {
         refId,
       );
       throw new NotFoundException(`Resume with ID ${id} not found`);
+    }
+
+    if (resume.user_id !== actingUserId) {
+      throw new ForbiddenException('Можно редактировать только своё резюме');
     }
 
     // 2. Слияние данных и сохранение

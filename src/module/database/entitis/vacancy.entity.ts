@@ -4,11 +4,12 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
   ManyToOne,
   JoinColumn,
-  OneToMany,
 } from 'typeorm';
 import { ApplicationEntity } from './application.entity';
+import { UserEntity } from './user.entity';
 
 const salaryNetTransformer = {
   to: (value: number | null | undefined) => value,
@@ -25,6 +26,12 @@ export class VacancyEntity {
 
   @Column()
   user_id: number;
+
+  @ManyToOne(() => UserEntity, (user) => user.vacancies, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'user_id' })
+  user: UserEntity;
 
   @Column()
   profession: string;
@@ -85,6 +92,9 @@ export class VacancyEntity {
 
   @Column()
   company: string;
+
+  @Column({ type: 'text', nullable: true })
+  company_description: string;
 
   @OneToMany(() => ApplicationEntity, (application) => application.vacancy)
   applications: ApplicationEntity[];

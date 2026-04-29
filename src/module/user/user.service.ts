@@ -1,4 +1,10 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/user.dto';
@@ -6,6 +12,7 @@ import * as bcrypt from 'bcrypt';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { UserEntity } from '../database/entitis/user.entity';
 import { RoleEntity } from '../database/entitis/role.entity';
+import { AppUserRole } from '../../common/constants/app-user-role';
 import * as twilio from 'twilio';
 import { TelegramBotService } from '../telegram/telegram-bot.service';
 import { TelegramLinkService } from '../telegram/telegram-link.service';
@@ -73,6 +80,86 @@ export class UserService {
     return randomInt(1000, 10000).toString();
   }
 
+  /** Гарантирует строки ролей соискатель / работодатель в таблице role. */
+  async ensureAppRoles(refId: string): Promise<void> {
+    const pairs: [AppUserRole, string][] = [
+      [AppUserRole.JOB_SEEKER, 'Соискатель'],
+      [AppUserRole.EMPLOYER, 'Работодатель'],
+    ];
+    for (const [roleName, description] of pairs) {
+      const existing = await this.roleRepository.findOne({
+        where: { role: roleName },
+      });
+      if (!existing) {
+        await this.roleRepository.save({ role: roleName, description });
+        this.logger.debug(`[SERVICE] Created role ${roleName}`, refId);
+      }
+    }
+  }
+
+  /**
+   * Переключение только между соискателем и работодателем.
+   * Роль USER (legacy) считается соискателем.
+   */
+  async switchUserRole(
+    userId: number,
+    targetRole: AppUserRole,
+    refId: string,
+  ): Promise<UserEntity> {
+    await this.ensureAppRoles(refId);
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['role'],
+    });
+    if (!user) {
+      throw new NotFoundException(`Пользователь #${userId} не найден`);
+    }
+    const currentName = user.role?.role ?? '';
+    const effective: AppUserRole =
+      currentName === 'USER'
+        ? AppUserRole.JOB_SEEKER
+        : (currentName as AppUserRole);
+
+    if (
+      effective !== AppUserRole.JOB_SEEKER &&
+      effective !== AppUserRole.EMPLOYER
+    ) {
+      throw new BadRequestException(
+        'Переключение роли доступно только для соискателя и работодателя',
+      );
+    }
+    if (effective === targetRole) {
+      return user;
+    }
+    if (
+      (effective === AppUserRole.JOB_SEEKER &&
+        targetRole !== AppUserRole.EMPLOYER) ||
+      (effective === AppUserRole.EMPLOYER &&
+        targetRole !== AppUserRole.JOB_SEEKER)
+    ) {
+      throw new BadRequestException(
+        'Можно переключаться только между соискателем (JOB_SEEKER) и работодателем (EMPLOYER)',
+      );
+    }
+
+    const nextRole = await this.roleRepository.findOne({
+      where: { role: targetRole },
+    });
+    if (!nextRole) {
+      throw new BadRequestException(`Роль ${targetRole} не найдена в БД`);
+    }
+    user.role = nextRole;
+    await this.userRepository.save(user);
+    const reloaded = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['role'],
+    });
+    if (!reloaded) {
+      throw new NotFoundException(`Пользователь #${userId} не найден`);
+    }
+    return reloaded;
+  }
+
   async sendConfirmationSMS(
     phoneNumber: string,
     smsCode: string,
@@ -86,7 +173,11 @@ export class UserService {
           'Twilio не настроен. Установите TWILIO_ACCOUNT_SID и TWILIO_AUTH_TOKEN',
           '',
         );
-        console.log(`SMS Code для ${phoneNumber}: ${smsCode}`);
+        // В production не логируем OTP-коды.
+        this.logger.warn(
+          `Twilio не настроен. OTP не отправлен для ${phoneNumber}`,
+          refId,
+        );
         return;
       }
 
@@ -99,7 +190,6 @@ export class UserService {
       this.logger.debug(`SMS sent to ${phoneNumber}`, '');
     } catch (error) {
       this.logger.error(`Failed to send SMS to ${phoneNumber}: ${error}`, '');
-      console.log(`SMS Code для ${phoneNumber}: ${smsCode}`);
     }
   }
 
@@ -145,13 +235,15 @@ export class UserService {
         refId,
       );
 
-      let role = await this.roleRepository.findOne({ where: { role: 'USER' } });
-
+      await this.ensureAppRoles(refId);
+      const targetRole = userData.role ?? AppUserRole.JOB_SEEKER;
+      const role = await this.roleRepository.findOne({
+        where: { role: targetRole },
+      });
       if (!role) {
-        role = await this.roleRepository.save({
-          role: 'USER',
-          description: 'Роль по умолчанию',
-        });
+        throw new BadRequestException(
+          `Роль ${targetRole} не найдена после инициализации`,
+        );
       }
 
       const smsCode = this.generateSmsCode();
@@ -162,6 +254,7 @@ export class UserService {
         role: role,
         phoneConfirmed: false,
         smsCode: smsCode,
+        isBanned: false,
       });
 
       const savedUser = await this.userRepository.save(user);
@@ -253,12 +346,41 @@ export class UserService {
     if (!user) {
       throw new HttpException('Пользователь не найден', HttpStatus.NOT_FOUND);
     }
+    if (user.isBanned) {
+      throw new HttpException(
+        'Пользователь заблокирован',
+        HttpStatus.FORBIDDEN,
+      );
+    }
     const newCode = this.generateSmsCode();
     user.smsCode = newCode;
     await this.save(user);
     await this.sendConfirmationSMS(phoneNumber, newCode, refId);
-    console.log('code', newCode);
-
     return newCode;
+  }
+
+  async setBanStatus(
+    userId: number,
+    isBanned: boolean,
+    refId: string,
+  ): Promise<UserEntity> {
+    const user = await this.findOneById(userId, refId);
+    if (!user) {
+      throw new NotFoundException(`Пользователь #${userId} не найден`);
+    }
+    user.isBanned = isBanned;
+    return await this.userRepository.save(user);
+  }
+
+  async getUsersByRoleWithRelations(role: AppUserRole, refId: string) {
+    this.logger.debug(`[SERVICE] get users by role ${role}`, refId);
+    const relation = role === AppUserRole.JOB_SEEKER ? 'resumes' : 'vacancies';
+    return await this.userRepository
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.role', 'r')
+      .leftJoinAndSelect(`u.${relation}`, relation)
+      .where('r.role = :role', { role })
+      .orderBy('u.id', 'DESC')
+      .getMany();
   }
 }

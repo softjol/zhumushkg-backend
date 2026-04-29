@@ -78,6 +78,9 @@ export class ResumeEntity {
   position: string;
 
   @Column({ nullable: true })
+  category: string;
+
+  @Column({ nullable: true })
   work_schedule: string;
 
   @Column({ nullable: true })

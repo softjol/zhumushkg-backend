@@ -12,6 +12,7 @@ import { VacancyModule } from './module/vacancy/vacancy.module';
 import { ApplicationModule } from './module/application/application.module';
 import { TelegramModule } from './module/telegram/telegram.module';
 import { FavoriteModule } from './module/favorite/favorite.module';
+import { JwtAuthGuard } from './module/auth/jwt-auth.guard';
 
 @Module({
   imports: [

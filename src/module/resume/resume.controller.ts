@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { ResumeService } from './resume.service';
 import { ResumeResponseService } from './resume-response/resume-response.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { CreateResumeDto } from './dto/resume.dto';
+import { ListResumeQueryDto } from './dto/list-resume-query.dto';
 import { RefId } from '../../decorators/ref.decorator';
 import {
   CreateResumeResponseDto,
@@ -24,6 +26,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
 
 @ApiTags('Resume')
+@ApiBearerAuth('access-token')
+@UseGuards(JwtAuthGuard)
 @Controller('resume')
 export class ResumeController {
   constructor(
@@ -69,10 +73,13 @@ export class ResumeController {
   }
 
   @Get()
-  async getAllResume(@RefId() refId: string) {
+  async getAllResume(
+    @RefId() refId: string,
+    @Query() query: ListResumeQueryDto,
+  ) {
     this.logger.debug(`[CONTROLLER] get all resume`, refId);
     try {
-      return await this.resumeService.getAllResume(refId);
+      return await this.resumeService.getAllResume(refId, query);
     } catch (error) {
       this.logger.error(
         `[CONTROLLER] error getting all resume: ${error}`,
@@ -125,17 +132,56 @@ export class ResumeController {
     }
   }
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Статус отклика на резюме (JWT; только владелец резюме). Тело: { "status": "accepted" | "rejected" }',
+  })
+  @Patch('response/:id/status')
+  async updateResumeResponseStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateResumeResponseStatusDto,
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
+  ) {
+    this.logger.debug(
+      `[CONTROLLER] update resume response status id: ${id} status: ${dto.status}`,
+      refId,
+    );
+    try {
+      const actingUserId = Number(req.user?.id);
+      const response = await this.resumeResponseService.updateStatus(
+        id,
+        dto.status,
+        actingUserId,
+        refId,
+      );
+      this.logger.debug(`[CONTROLLER] update status SUCCESS id: ${id}`, refId);
+      return response;
+    } catch (error) {
+      this.logger.error(
+        `[CONTROLLER] error update status response ${id}: ${error}`,
+        refId,
+      );
+      throw error;
+    }
+  }
+
   @Patch(':id')
   async updateResume(
     @Param('id', ParseIntPipe) id: number,
     @Body() resumeData: CreateResumeDto,
     @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
   ) {
     this.logger.debug(`[CONTROLLER] update resume ${id}`, refId);
     try {
+      const actingUserId = Number(req.user?.id);
       const resume = await this.resumeService.updateResume(
         id,
         resumeData,
+        actingUserId,
         refId,
       );
       this.logger.debug(`[CONTROLLER] update resume SUCCESS id ${id}`, refId);
