@@ -19,9 +19,7 @@ import { RefId } from '../../decorators/ref.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
 
-@ApiTags('Вакансии и резюме')
-@ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard)
+@ApiTags('Вакансии')
 @Controller('vacancy')
 export class VacancyController {
   constructor(
@@ -121,6 +119,8 @@ export class VacancyController {
     }
   }
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async removeByIdVacancy(
     @Param('id') id: number,
@@ -146,6 +146,8 @@ export class VacancyController {
     }
   }
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async updateVacancy(
     @Param('id') id: number,

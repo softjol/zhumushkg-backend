@@ -26,8 +26,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
 
 @ApiTags('Resume')
-@ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard)
 @Controller('resume')
 export class ResumeController {
   constructor(
@@ -168,6 +166,8 @@ export class ResumeController {
     }
   }
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async updateResume(
     @Param('id', ParseIntPipe) id: number,
