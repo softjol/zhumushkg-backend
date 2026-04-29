@@ -46,6 +46,18 @@ export class ApplicationController {
     return await this.applicationService.findAll(refId);
   }
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Мои отклики (текущий пользователь, JWT)' })
+  @Get('my')
+  async findMy(
+    @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
+  ) {
+    const candidateId = Number(req.user?.id);
+    return await this.applicationService.findMy(candidateId, refId);
+  }
+
   @Get(':id')
   async findById(@Param('id') id: number, @RefId() refId: string) {
     return await this.applicationService.findById(id, refId);

@@ -1,4 +1,6 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { RefIdMiddleware } from './middleware/ref-id.middleware';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './module/database/database.module';
@@ -9,11 +11,11 @@ import { ResumeModule } from './module/resume/resume.module';
 import { VacancyModule } from './module/vacancy/vacancy.module';
 import { ApplicationModule } from './module/application/application.module';
 import { TelegramModule } from './module/telegram/telegram.module';
-import { LoggerModule } from './helpers/logger/logger.module';
+import { FavoriteModule } from './module/favorite/favorite.module';
 
 @Module({
   imports: [
-    LoggerModule,
+    ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
     AuthModule,
     UserModule,
@@ -22,8 +24,13 @@ import { LoggerModule } from './helpers/logger/logger.module';
     VacancyModule,
     ApplicationModule,
     TelegramModule,
+    FavoriteModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RefIdMiddleware).forRoutes('*');
+  }
+}

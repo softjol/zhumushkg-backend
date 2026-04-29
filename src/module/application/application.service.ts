@@ -11,7 +11,7 @@ import {
   ApplicationStatus,
 } from '../database/entitis/application.entity';
 import { ResumeEntity } from '../database/entitis/resume.entity';
-import { VacancyEntity } from '../database/entitis/vacancy.enity';
+import { VacancyEntity } from '../database/entitis/vacancy.entity';
 import { CreateApplicationDto } from './dto/application.dto';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
 
@@ -73,6 +73,18 @@ export class ApplicationService {
     this.logger.debug(`[SERVICE] Creating application for vacancy`, refId);
     return await this.applicationRepository.find({
       relations: ['vacancy', 'candidate', 'resume'],
+    });
+  }
+
+  async findMy(candidateId: number, refId: string) {
+    this.logger.debug(
+      `[SERVICE] find applications for candidateId=${candidateId}`,
+      refId,
+    );
+    return await this.applicationRepository.find({
+      where: { candidate_id: candidateId },
+      relations: ['vacancy', 'resume'],
+      order: { created_at: 'DESC' },
     });
   }
 

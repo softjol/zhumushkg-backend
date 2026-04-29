@@ -22,16 +22,38 @@ export class CreateVacancyDto {
   @IsString()
   position: string;
 
+  @ApiPropertyOptional({
+    example: 'IT',
+    description: 'Категория вакансии',
+  })
+  @IsString()
+  @IsOptional()
+  category?: string;
+
   @ApiProperty({ example: 'Полный день', description: 'График работы' })
   @IsString()
   work_schedule: string;
 
   @ApiProperty({
-    example: 'Разработка API, код-ревью...',
-    description: 'Требования и обязанности',
+    example: 'Знание Node.js, TypeScript...',
+    description: 'Требования',
   })
   @IsString()
-  requir_respons: string;
+  requirements: string;
+
+  @ApiProperty({
+    example: 'Официальное оформление, ДМС...',
+    description: 'Условия',
+  })
+  @IsString()
+  conditions: string;
+
+  @ApiProperty({
+    example: 'Разработка backend-сервисов...',
+    description: 'Описание вакансии',
+  })
+  @IsString()
+  description: string;
 
   @ApiProperty({ example: '3-5 лет', description: 'Опыт работы' })
   @IsString()

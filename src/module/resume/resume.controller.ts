@@ -99,14 +99,21 @@ export class ResumeController {
     }
   }
 
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Удалить резюме (JWT; свои отклики и связи удаляются вместе)',
+  })
   @Delete(':id')
   async removeResume(
     @Param('id', ParseIntPipe) id: number,
     @RefId() refId: string,
+    @Req() req: Request & { user?: { id?: number } },
   ) {
     this.logger.debug(`[CONTROLLER] remove resume by id ${id}`, refId);
     try {
-      const resume = await this.resumeService.removeResume(id, refId);
+      const userId = Number(req.user?.id);
+      const resume = await this.resumeService.removeResume(id, userId, refId);
       this.logger.debug(`[CONTROLLER] remove resume SUCCESS id ${id}`, refId);
       return resume;
     } catch (error) {
@@ -144,138 +151,138 @@ export class ResumeController {
 
   // RESUME RESPONSE
 
-  @ApiBearerAuth('access-token')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Отклик на резюме (JWT после login)' })
-  @Post(':id/response')
-  async createResponse(
-    @Param('id', ParseIntPipe) resumeId: number,
-    @Body() dto: CreateResumeResponseDto,
-    @RefId() refId: string,
-  ) {
-    this.logger.debug(
-      `[CONTROLLER] create response resumeId: ${resumeId} employerId: ${dto.employerId}`,
-      refId,
-    );
-    try {
-      const response = await this.resumeResponseService.createResponse(
-        dto.employerId,
-        resumeId,
-        refId,
-      );
-      this.logger.debug(`[CONTROLLER] create response SUCCESS`, refId);
-      return response;
-    } catch (error) {
-      this.logger.error(`[CONTROLLER] error create response: ${error}`, refId);
-      throw error;
-    }
-  }
+  // @ApiBearerAuth('access-token')
+  // @UseGuards(JwtAuthGuard)
+  // @ApiOperation({ summary: 'Отклик на резюме (JWT после login)' })
+  // @Post(':id/response')
+  // async createResponse(
+  //   @Param('id', ParseIntPipe) resumeId: number,
+  //   @Body() dto: CreateResumeResponseDto,
+  //   @RefId() refId: string,
+  // ) {
+  //   this.logger.debug(
+  //     `[CONTROLLER] create response resumeId: ${resumeId} employerId: ${dto.employerId}`,
+  //     refId,
+  //   );
+  //   try {
+  //     const response = await this.resumeResponseService.createResponse(
+  //       dto.employerId,
+  //       resumeId,
+  //       refId,
+  //     );
+  //     this.logger.debug(`[CONTROLLER] create response SUCCESS`, refId);
+  //     return response;
+  //   } catch (error) {
+  //     this.logger.error(`[CONTROLLER] error create response: ${error}`, refId);
+  //     throw error;
+  //   }
+  // }
 
-  @Get('responses/:id')
-  async getResponsesByResume(
-    @Param('id', ParseIntPipe) resumeId: number,
-    @RefId() refId: string,
-  ) {
-    this.logger.debug(
-      `[CONTROLLER] get responses by resumeId: ${resumeId}`,
-      refId,
-    );
-    try {
-      const responses = await this.resumeResponseService.getResponsesByResume(
-        resumeId,
-        refId,
-      );
-      this.logger.debug(
-        `[CONTROLLER] get responses by resumeId SUCCESS`,
-        refId,
-      );
-      return responses;
-    } catch (error) {
-      this.logger.error(
-        `[CONTROLLER] error get responses by resume: ${error}`,
-        refId,
-      );
-      throw error;
-    }
-  }
+  // @Get('responses/:id')
+  // async getResponsesByResume(
+  //   @Param('id', ParseIntPipe) resumeId: number,
+  //   @RefId() refId: string,
+  // ) {
+  //   this.logger.debug(
+  //     `[CONTROLLER] get responses by resumeId: ${resumeId}`,
+  //     refId,
+  //   );
+  //   try {
+  //     const responses = await this.resumeResponseService.getResponsesByResume(
+  //       resumeId,
+  //       refId,
+  //     );
+  //     this.logger.debug(
+  //       `[CONTROLLER] get responses by resumeId SUCCESS`,
+  //       refId,
+  //     );
+  //     return responses;
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `[CONTROLLER] error get responses by resume: ${error}`,
+  //       refId,
+  //     );
+  //     throw error;
+  //   }
+  // }
 
-  @Get('employer/:id/responses')
-  async getResponsesByEmployer(
-    @Param('id', ParseIntPipe) employerId: number,
-    @RefId() refId: string,
-  ) {
-    this.logger.debug(
-      `[CONTROLLER] get responses by employerId: ${employerId}`,
-      refId,
-    );
-    try {
-      const responses = await this.resumeResponseService.getResponsesByEmployer(
-        employerId,
-        refId,
-      );
-      this.logger.debug(
-        `[CONTROLLER] get responses by employerId SUCCESS`,
-        refId,
-      );
-      return responses;
-    } catch (error) {
-      this.logger.error(
-        `[CONTROLLER] error get responses by employer: ${error}`,
-        refId,
-      );
-      throw error;
-    }
-  }
+  // @Get('employer/:id/responses')
+  // async getResponsesByEmployer(
+  //   @Param('id', ParseIntPipe) employerId: number,
+  //   @RefId() refId: string,
+  // ) {
+  //   this.logger.debug(
+  //     `[CONTROLLER] get responses by employerId: ${employerId}`,
+  //     refId,
+  //   );
+  //   try {
+  //     const responses = await this.resumeResponseService.getResponsesByEmployer(
+  //       employerId,
+  //       refId,
+  //     );
+  //     this.logger.debug(
+  //       `[CONTROLLER] get responses by employerId SUCCESS`,
+  //       refId,
+  //     );
+  //     return responses;
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `[CONTROLLER] error get responses by employer: ${error}`,
+  //       refId,
+  //     );
+  //     throw error;
+  //   }
+  // }
 
-  @Patch('response/:id/status')
-  async updateStatus(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateResumeResponseStatusDto,
-    @RefId() refId: string,
-  ) {
-    this.logger.debug(
-      `[CONTROLLER] update status response id: ${id} status: ${dto.status}`,
-      refId,
-    );
-    try {
-      const response = await this.resumeResponseService.updateStatus(
-        id,
-        dto.status,
-        refId,
-      );
-      this.logger.debug(`[CONTROLLER] update status SUCCESS id: ${id}`, refId);
-      return response;
-    } catch (error) {
-      this.logger.error(
-        `[CONTROLLER] error update status response ${id}: ${error}`,
-        refId,
-      );
-      throw error;
-    }
-  }
+  // @Patch('response/:id/status')
+  // async updateStatus(
+  //   @Param('id', ParseIntPipe) id: number,
+  //   @Body() dto: UpdateResumeResponseStatusDto,
+  //   @RefId() refId: string,
+  // ) {
+  //   this.logger.debug(
+  //     `[CONTROLLER] update status response id: ${id} status: ${dto.status}`,
+  //     refId,
+  //   );
+  //   try {
+  //     const response = await this.resumeResponseService.updateStatus(
+  //       id,
+  //       dto.status,
+  //       refId,
+  //     );
+  //     this.logger.debug(`[CONTROLLER] update status SUCCESS id: ${id}`, refId);
+  //     return response;
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `[CONTROLLER] error update status response ${id}: ${error}`,
+  //       refId,
+  //     );
+  //     throw error;
+  //   }
+  // }
 
-  @Delete('response/:id')
-  async removeResponse(
-    @Param('id', ParseIntPipe) id: number,
-    @RefId() refId: string,
-  ) {
-    this.logger.debug(`[CONTROLLER] remove response id: ${id}`, refId);
-    try {
-      const response = await this.resumeResponseService.removeResponse(
-        id,
-        refId,
-      );
-      this.logger.debug(
-        `[CONTROLLER] remove response SUCCESS id: ${id}`,
-        refId,
-      );
-      return response;
-    } catch (error) {
-      this.logger.error(
-        `[CONTROLLER] error remove response ${id}: ${error}`,
-        refId,
-      );
-      throw error;
-    }
-  }
+  // @Delete('response/:id')
+  // async removeResponse(
+  //   @Param('id', ParseIntPipe) id: number,
+  //   @RefId() refId: string,
+  // ) {
+  //   this.logger.debug(`[CONTROLLER] remove response id: ${id}`, refId);
+  //   try {
+  //     const response = await this.resumeResponseService.removeResponse(
+  //       id,
+  //       refId,
+  //     );
+  //     this.logger.debug(
+  //       `[CONTROLLER] remove response SUCCESS id: ${id}`,
+  //       refId,
+  //     );
+  //     return response;
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `[CONTROLLER] error remove response ${id}: ${error}`,
+  //       refId,
+  //     );
+  //     throw error;
+  //   }
+  // }
 }

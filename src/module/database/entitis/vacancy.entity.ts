@@ -10,6 +10,14 @@ import {
 } from 'typeorm';
 import { ApplicationEntity } from './application.entity';
 
+const salaryNetTransformer = {
+  to: (value: number | null | undefined) => value,
+  from: (value: string | null): number | null => {
+    if (value == null) return null;
+    return Math.trunc(Number(value));
+  },
+};
+
 @Entity('vacancy')
 export class VacancyEntity {
   @PrimaryGeneratedColumn()
@@ -24,13 +32,22 @@ export class VacancyEntity {
   @Column()
   position: string;
 
+  @Column({ nullable: true })
+  category: string;
+
   @Column({ name: 'work_schedule' })
   work_schedule: string;
 
-  @Column({ name: 'requir_respons', type: 'text' })
-  requir_respons: string;
+  @Column({ type: 'text', nullable: true })
+  requirements: string;
 
-  @Column({ name: 'experience_work' }) // Исправлено exprience
+  @Column({ type: 'text', nullable: true })
+  conditions: string;
+
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
+  @Column({ name: 'experience_work' })
   experience_work: string;
 
   @Column({ name: 'remote_work', default: false })
@@ -48,7 +65,13 @@ export class VacancyEntity {
   @Column({ name: 'payment_period' })
   payment_period: string;
 
-  @Column({ name: 'salary_net', type: 'decimal', precision: 10, scale: 2 })
+  @Column({
+    name: 'salary_net',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    transformer: salaryNetTransformer,
+  })
   salary_net: number;
 
   @Column({ default: 0 })
@@ -66,9 +89,9 @@ export class VacancyEntity {
   @OneToMany(() => ApplicationEntity, (application) => application.vacancy)
   applications: ApplicationEntity[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

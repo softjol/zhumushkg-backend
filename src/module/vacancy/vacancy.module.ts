@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { VacancyController } from './vacancy.controller';
 import { VacancyService } from './vacancy.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
-import { VacancyEntity } from '../database/entitis/vacancy.enity';
+import { VacancyEntity } from '../database/entitis/vacancy.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 
