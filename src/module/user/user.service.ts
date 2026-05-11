@@ -359,16 +359,12 @@ export class UserService {
     return newCode;
   }
 
-  async setBanStatus(
-    userId: number,
-    isBanned: boolean,
-    refId: string,
-  ): Promise<UserEntity> {
+  async setBanStatus(userId: number, refId: string): Promise<UserEntity> {
     const user = await this.findOneById(userId, refId);
     if (!user) {
       throw new NotFoundException(`Пользователь #${userId} не найден`);
     }
-    user.isBanned = isBanned;
+    user.isBanned = !user.isBanned;
     return await this.userRepository.save(user);
   }
 

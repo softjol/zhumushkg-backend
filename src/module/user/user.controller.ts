@@ -76,12 +76,11 @@ export class UserController {
   @Patch('admin/:id/ban')
   async banUser(
     @Param('id') id: number,
-    @Body() dto: BanUserDto,
     @RefId() refId: string,
     @Req() req: Request & { user?: { role?: string } },
   ) {
     this.assertAdmin(req);
-    return await this.userService.setBanStatus(id, dto.isBanned, refId);
+    return await this.userService.setBanStatus(id, refId);
   }
 
   @ApiBearerAuth('access-token')
