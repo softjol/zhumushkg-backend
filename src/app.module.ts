@@ -13,6 +13,8 @@ import { ApplicationModule } from './module/application/application.module';
 import { TelegramModule } from './module/telegram/telegram.module';
 import { FavoriteModule } from './module/favorite/favorite.module';
 import { JwtAuthGuard } from './module/auth/jwt-auth.guard';
+import { ChatModule } from './module/messages/chat.module';
+import { LandingReviewModule } from './module/landing-review/landing-review.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { JwtAuthGuard } from './module/auth/jwt-auth.guard';
     ResumeModule,
     VacancyModule,
     ApplicationModule,
+    ChatModule,
+    LandingReviewModule,
     TelegramModule,
     FavoriteModule,
   ],

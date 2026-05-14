@@ -9,9 +9,12 @@ export class WsJwtGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const client: Socket = context.switchToWs().getClient();
-    const token =
-      client.handshake.auth?.token ||
-      client.handshake.headers?.authorization?.replace('Bearer ', '');
+    const authHeader = client.handshake.headers?.authorization;
+    const fromHeader =
+      typeof authHeader === 'string'
+        ? authHeader.replace(/^Bearer\s+/i, '').trim()
+        : undefined;
+    const token = client.handshake.auth?.token || fromHeader;
 
     if (!token) throw new WsException('Unauthorized');
 

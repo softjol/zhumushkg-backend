@@ -11,6 +11,10 @@ import {
 import { UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
+import {
+  ChatEntity,
+  MessageEntity,
+} from '../database/entitis/chat.entity';
 import { NotificationService } from '../notification/notificant.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { WsJwtGuard } from './ws-jwt.guard';
@@ -141,47 +145,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     try {
-      const message = await this.chatService.sendMessage(
+      const { message, recipientId } = await this.chatService.sendMessage(
         Number(payload.chatId),
         userId,
         payload.content,
         refId,
       );
 
-      this.server.to(`chat_${payload.chatId}`).emit('chat:new_message', {
-        chatId: payload.chatId,
-        message,
-      });
-
-      const chat = await this.chatService.getChatById(
+      await this.dispatchOutgoingChatMessage(
         Number(payload.chatId),
-        userId,
+        message,
+        recipientId,
         refId,
       );
-      const recipientId =
-        chat.hr_id === userId ? chat.candidate_id : chat.hr_id;
-
-      // Проверяем, онлайн ли получатель в этой комнате
-      const room = this.server.sockets.adapter.rooms.get(
-        `chat_${payload.chatId}`,
-      );
-      const sockets = userSockets.get(recipientId);
-      const isInRoom = [...(sockets ?? [])].some((sid) => room?.has(sid));
-
-      if (!isInRoom) {
-        // WS-уведомление если онлайн, но не в комнате
-        this.notifyIfNotInRoom(recipientId, Number(payload.chatId), message);
-
-        // SSE-уведомление — сохранит в БД и отправит через stream
-        await this.notificationService.sendNotification(
-          recipientId,
-          'Новое сообщение',
-          message.content.length > 50
-            ? message.content.slice(0, 50) + '...'
-            : message.content,
-          'ws-chat',
-        );
-      }
 
       this.logger.debug(
         `[SUCCESS] chat:send_message userId=${userId}, chatId=${payload.chatId}, messageId=${message.id}`,
@@ -201,13 +177,24 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('chat:typing')
-  handleTyping(
+  async handleTyping(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { chatId: number; isTyping: boolean },
   ) {
+    const userId: number = client.data.userId;
+    const refId = client.id;
+    try {
+      await this.chatService.getChatById(
+        Number(payload.chatId),
+        userId,
+        refId,
+      );
+    } catch {
+      throw new WsException('Нет доступа к чату');
+    }
     client.to(`chat_${payload.chatId}`).emit('chat:typing', {
       chatId: payload.chatId,
-      userId: client.data.userId,
+      userId,
       isTyping: payload.isTyping,
     });
   }
@@ -247,11 +234,48 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  notifyNewChat(recipientId: number, chat: any) {
+  /** После сохранения сообщения (WS или HTTP): комната + уведомление получателю вне комнаты */
+  async dispatchOutgoingChatMessage(
+    chatId: number,
+    message: MessageEntity,
+    recipientId: number,
+    refId: string,
+  ): Promise<void> {
+    if (this.server) {
+      this.server.to(`chat_${chatId}`).emit('chat:new_message', {
+        chatId,
+        message,
+      });
+    }
+
+    const adapter = this.server?.sockets?.adapter;
+    const room = adapter?.rooms?.get(`chat_${chatId}`);
+    const sockets = userSockets.get(recipientId);
+    const isInRoom =
+      room != null &&
+      [...(sockets ?? [])].some((sid) => room.has(sid));
+
+    if (!isInRoom) {
+      this.notifyIfNotInRoom(recipientId, chatId, message);
+      await this.notificationService.sendNotification(
+        recipientId,
+        'Новое сообщение',
+        this.previewText(message.content),
+        'ws-chat',
+      );
+    }
+  }
+
+  notifyNewChat(recipientId: number, chat: ChatEntity) {
     this.emitToUser(recipientId, 'chat:new_chat', { chat });
   }
 
-  private emitToUser(userId: number, event: string, data: any) {
+  private previewText(content: string, maxLen = 50): string {
+    return content.length > maxLen ? `${content.slice(0, maxLen)}...` : content;
+  }
+
+  private emitToUser(userId: number, event: string, data: unknown) {
+    if (!this.server) return;
     const sockets = userSockets.get(userId);
     if (!sockets) return;
     sockets.forEach((socketId) => {
@@ -259,7 +283,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
-  private notifyIfNotInRoom(recipientId: number, chatId: number, message: any) {
+  private notifyIfNotInRoom(
+    recipientId: number,
+    chatId: number,
+    message: MessageEntity,
+  ) {
     this.emitToUser(recipientId, 'chat:notification', { chatId, message });
   }
 }

@@ -15,6 +15,9 @@ import { ResumeEntity } from '../database/entitis/resume.entity';
 import { VacancyEntity } from '../database/entitis/vacancy.entity';
 import { CreateApplicationDto } from './dto/application.dto';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { ChatService } from '../messages/chat.service';
+import { ChatGateway } from '../messages/chat.gateway';
+import { NotificationService } from '../notification/notificant.service';
 
 @Injectable()
 export class ApplicationService {
@@ -26,6 +29,9 @@ export class ApplicationService {
     @InjectRepository(VacancyEntity)
     private readonly vacancyRepository: Repository<VacancyEntity>,
     private readonly logger: CustomLogger,
+    private readonly chatService: ChatService,
+    private readonly chatGateway: ChatGateway,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async create(dto: CreateApplicationDto, candidateId: number, refId: string) {
@@ -67,7 +73,30 @@ export class ApplicationService {
       resume_id: dto.resume_id,
       status: ApplicationStatus.NEW,
     });
-    return await this.applicationRepository.save(application);
+    const saved = await this.applicationRepository.save(application);
+
+    const hrId = vacancy.user_id;
+    const { chat, created: chatCreated } =
+      await this.chatService.openChatFromApplication(
+        hrId,
+        candidateId,
+        dto.vacancy_id,
+        saved.id,
+        refId,
+      );
+
+    if (chatCreated) {
+      this.chatGateway.notifyNewChat(hrId, chat);
+      this.chatGateway.notifyNewChat(candidateId, chat);
+      await this.notificationService.sendNotification(
+        hrId,
+        'Новый отклик на вакансию',
+        'Откройте чат, чтобы связаться с кандидатом',
+        'http-chat',
+      );
+    }
+
+    return { ...saved, chat };
   }
 
   async findAll(actingRole: string | undefined, refId: string) {
@@ -149,8 +178,34 @@ export class ApplicationService {
       );
     }
 
+    const previousStatus = application.status;
     application.status = status;
-    return await this.applicationRepository.save(application);
+    const saved = await this.applicationRepository.save(application);
+
+    if (previousStatus !== status) {
+      const { chat, created } =
+        await this.chatService.openChatFromApplication(
+          employerUserId,
+          saved.candidate_id,
+          saved.vacancy_id,
+          saved.id,
+          refId,
+        );
+
+      if (created) {
+        this.chatGateway.notifyNewChat(saved.candidate_id, chat);
+        await this.notificationService.sendNotification(
+          saved.candidate_id,
+          'Работодатель ответил на ваш отклик',
+          'Откройте чат, чтобы продолжить общение',
+          'http-chat',
+        );
+      }
+
+      return { ...saved, chat };
+    }
+
+    return saved;
   }
 
   async remove(

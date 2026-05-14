@@ -14,7 +14,7 @@ import { ApplicationEntity } from './application.entity';
 import { VacancyEntity } from './vacancy.entity';
 
 export enum ChatSource {
-  APPLICATION = 'APPLICATION', // кандидат откликнулся → HR принял
+  APPLICATION = 'APPLICATION', // диалог после отклика кандидата на вакансию
   RESUME = 'RESUME', // HR нашёл резюме и написал первым
 }
 

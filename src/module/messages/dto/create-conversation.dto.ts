@@ -1,12 +1,8 @@
 import { IsInt, IsOptional, IsPositive } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class OpenChatFromResumeDto {
-  @ApiProperty({ example: 1, description: 'ID HR-менеджера' })
-  @IsInt()
-  @IsPositive()
-  hrId: number;
-
+/** Тело POST /conversations — работодатель (JWT) открывает диалог с кандидатом. */
+export class CreateConversationDto {
   @ApiProperty({ example: 42, description: 'ID кандидата' })
   @IsInt()
   @IsPositive()

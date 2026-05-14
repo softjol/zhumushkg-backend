@@ -99,7 +99,7 @@ export class VacancyService {
       if (query.search?.trim()) {
         const s = `%${query.search.trim()}%`;
         qb.andWhere(
-          '(v.profession ILIKE :s OR v.position ILIKE :s OR v.description ILIKE :s OR v.company ILIKE :s OR v.requirements ILIKE :s OR v.conditions ILIKE :s)',
+          '(v.position ILIKE :s OR v.description ILIKE :s OR v.company ILIKE :s OR v.requirements ILIKE :s OR v.conditions ILIKE :s)',
           { s },
         );
       }

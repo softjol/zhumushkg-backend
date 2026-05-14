@@ -34,9 +34,6 @@ export class VacancyEntity {
   user: UserEntity;
 
   @Column()
-  profession: string;
-
-  @Column()
   position: string;
 
   @Column({ nullable: true })

@@ -38,10 +38,19 @@ export function buildSwaggerConfig() {
       )
       // Auth первым — начинать с регистрации / входа
       .addTag('Auth', 'Регистрация, подтверждение телефона, вход')
+      .addTag('messages', 'Отправка сообщения и отметка прочитанным по ID')
+      .addTag(
+        'conversations',
+        'Диалоги соискатель ↔ работодатель: список, открытие, сообщения',
+      )
       .addTag('App', 'Корень сервиса')
       .addTag('Role', 'Роли')
       .addTag('Resume', 'Резюме и отклики на резюме')
       .addTag('Вакансии', 'Вакансии')
+      .addTag(
+        'Отзыв',
+        'Отзывы: публично GET/POST `/landing/reviews`; админ JWT + роль ADMIN: GET/PATCH/DELETE `/landing/reviews/admin/:id`',
+      )
       .addTag('Уведомления', 'SSE и уведомления')
       .build()
   );

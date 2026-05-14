@@ -31,7 +31,11 @@ export class ApplicationController {
 
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Подать отклик на вакансию (JWT после login)' })
+  @ApiOperation({
+    summary: 'Подать отклик на вакансию (JWT после login)',
+    description:
+      'После успешного отклика автоматически создаётся диалог (поле `chat` в ответе). ID чата = `conversationId` в REST/WebSocket.',
+  })
   @Post()
   async create(
     @Body() dto: CreateApplicationDto,

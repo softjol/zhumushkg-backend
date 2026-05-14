@@ -11,10 +11,6 @@ export class CreateVacancyDto {
   @IsOptional()
   user_id?: number;
 
-  @ApiProperty({ example: 'Разработка', description: 'Профессия' })
-  @IsString()
-  profession: string;
-
   @ApiProperty({
     example: 'Middle Node.js Developer',
     description: 'Должность',
