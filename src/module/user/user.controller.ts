@@ -1,10 +1,10 @@
 import {
-  Body,
   Controller,
   Delete,
   ForbiddenException,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Req,
   UseGuards,
@@ -16,7 +16,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
 import { AppUserRole } from '../../common/constants/app-user-role';
-import { BanUserDto } from './dto/ban-user.dto';
 
 @ApiTags('User/Admin')
 @Controller('user')
@@ -85,36 +84,27 @@ export class UserController {
 
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'ADMIN: удалить пользователя' })
-  @Delete(':id')
+  @ApiOperation({
+    summary: 'ADMIN: удалить пользователя',
+    description:
+      'DELETE `/user/admin/:id`. Снимает связанные уведомления, отклики на резюме, чаты, email_verification, затем пользователя.',
+  })
+  @Delete('admin/:id')
   async removeById(
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @RefId() refId: string,
-    @Req() req: Request & { user?: { role?: string } },
+    @Req() req: Request & { user?: { id?: number; role?: string } },
   ) {
     this.assertAdmin(req);
     this.logger.debug(`[CONTROLLER] remove user by id ${id}`, refId);
 
-    try {
-      const user = await this.userService.findOneById(id, refId);
+    const actingUserId = Number(req.user?.id);
+    await this.userService.removeById(id, refId, { actingUserId });
 
-      if (!user) {
-        this.logger.debug(`[CONTROLLER] User with id ${id} not found`, refId);
-        return { message: `User with id ${id} not found` };
-      }
-
-      await this.userService.removeById(id, refId);
-      this.logger.debug(
-        `[CONTROLLER] User with id ${id} removed successfully`,
-        refId,
-      );
-      return { message: `Пользователь с id ${id} удален успешно` };
-    } catch (error) {
-      this.logger.error(
-        `[CONTROLLER] Error occurred while removing user by id ${id}`,
-        refId,
-      );
-      throw error;
-    }
+    this.logger.debug(
+      `[CONTROLLER] User with id ${id} removed successfully`,
+      refId,
+    );
+    return { message: `Пользователь с id ${id} удалён` };
   }
 }

@@ -6,12 +6,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { CreateUserDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { UserEntity } from '../database/entitis/user.entity';
 import { RoleEntity } from '../database/entitis/role.entity';
+import { NotificationEntity } from '../database/entitis/notification.entitity';
+import { ResumeResponseEntity } from '../database/entitis/resume-response.entity';
+import { ChatEntity, MessageEntity } from '../database/entitis/chat.entity';
 import { AppUserRole } from '../../common/constants/app-user-role';
 import * as twilio from 'twilio';
 import { TelegramBotService } from '../telegram/telegram-bot.service';
@@ -27,6 +30,7 @@ export class UserService {
     private userRepository: Repository<UserEntity>,
     @InjectRepository(RoleEntity)
     private readonly roleRepository: Repository<RoleEntity>,
+    private readonly dataSource: DataSource,
     private readonly logger: CustomLogger,
     private readonly telegramBotService: TelegramBotService,
     private readonly telegramLinkService: TelegramLinkService,
@@ -64,16 +68,52 @@ export class UserService {
     }
   }
 
-  async removeById(id: number, refId: string) {
-    this.logger.debug(`[SERVICE] remove by id ${JSON.stringify(id)}`, refId);
-    try {
-      this.logger.debug(`[SUCCESS] remove by id ${JSON.stringify(id)}`, refId);
-      await this.userRepository.delete(id);
-      return { message: `Пользователь с id ${id} удален успешно` };
-    } catch (error) {
-      this.logger.error(`[ERROR] remove by id ${JSON.stringify(error)}`, refId);
-      throw error;
+  async removeById(
+    id: number,
+    refId: string,
+    options?: { actingUserId?: number },
+  ): Promise<void> {
+    this.logger.debug(`[SERVICE] remove user id=${id}`, refId);
+
+    if (options?.actingUserId != null && options.actingUserId === id) {
+      throw new BadRequestException('Нельзя удалить собственную учётную запись');
     }
+
+    const existing = await this.userRepository.findOne({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Пользователь #${id} не найден`);
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from(MessageEntity)
+        .where(
+          'chat_id IN (SELECT id FROM chats WHERE hr_id = :id OR candidate_id = :id)',
+          { id },
+        )
+        .execute();
+
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from(ChatEntity)
+        .where('hr_id = :id OR candidate_id = :id', { id })
+        .execute();
+
+      await manager.delete(NotificationEntity, { userId: id });
+      await manager.delete(ResumeResponseEntity, { employerId: id });
+
+      await manager.query(`DELETE FROM email_verification WHERE user_id = $1`, [
+        id,
+      ]);
+
+      const result = await manager.delete(UserEntity, { id });
+      if (!result.affected) {
+        throw new NotFoundException(`Пользователь #${id} не найден`);
+      }
+    });
   }
 
   private generateSmsCode(): string {

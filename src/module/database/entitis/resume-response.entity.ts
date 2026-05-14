@@ -21,7 +21,7 @@ export class ResumeResponseEntity {
   id: number;
 
   // Работодатель
-  @ManyToOne(() => UserEntity)
+  @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'employer_id' })
   employer: UserEntity;
 

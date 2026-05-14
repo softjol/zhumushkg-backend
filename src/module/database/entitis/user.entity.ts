@@ -7,7 +7,6 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { RoleEntity } from './role.entity';
-import { EmailVerificationEntity } from './emailVerif.entity';
 import { ResumeEntity } from './resume.entity';
 import { ApplicationEntity } from './application.entity';
 import { VacancyEntity } from './vacancy.entity';
