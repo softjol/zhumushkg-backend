@@ -11,12 +11,12 @@ import { AuthModule } from '../auth/auth.module';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      // Для synchronize (DDL) используем прямое соединение без pooler
       url: (process.env.DATABASE_URL ?? '').replace('-pooler', ''),
       ssl: { rejectUnauthorized: false },
       migrations: ['dist/migrations/*.js'],
       autoLoadEntities: true,
-      synchronize: true,
+      // В production synchronize отключён — не трогает схему БД
+      synchronize: process.env.NODE_ENV !== 'production',
     }),
     AuthModule,
   ],
