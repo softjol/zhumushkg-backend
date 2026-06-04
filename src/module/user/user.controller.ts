@@ -40,6 +40,17 @@ export class UserController {
 
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Получить пользователя по ID' })
+  @Get(':id')
+  async getById(
+    @Param('id', ParseIntPipe) id: number,
+    @RefId() refId: string,
+  ) {
+    return this.userService.findOneById(id, refId);
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'ADMIN: все соискатели с их резюме' })
   @Get('admin/job-seekers-with-resumes')
   async getAllSeekersWithResumes(

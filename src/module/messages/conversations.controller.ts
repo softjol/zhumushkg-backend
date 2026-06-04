@@ -7,6 +7,7 @@ import {
   Query,
   ParseIntPipe,
   UseGuards,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -38,16 +39,20 @@ export class ConversationsController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Список диалогов текущего пользователя' })
+  @ApiOperation({
+    summary: 'Список диалогов текущего пользователя (с пагинацией и unread_count)',
+  })
   async list(
     @CurrentUser() user: { id: number; role: string },
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @RefId() refId: string,
   ) {
     this.logger.debug(
-      `[CONTROLLER] GET /conversations userId=${user.id}`,
+      `[CONTROLLER] GET /conversations userId=${user.id} page=${page} limit=${limit}`,
       refId,
     );
-    return this.chatService.getUserChats(user.id);
+    return this.chatService.getUserChats(user.id, page, limit);
   }
 
   @Post()
@@ -123,6 +128,20 @@ export class ConversationsController {
       refId,
     );
     return sent.message;
+  }
+
+  @Get(':id/online')
+  @ApiOperation({ summary: 'Онлайн статус собеседника в чате' })
+  @ApiParam({ name: 'id', description: 'ID диалога' })
+  async companionOnline(
+    @Param('id', ParseIntPipe) conversationId: number,
+    @CurrentUser() user: { id: number },
+    @RefId() refId: string,
+  ) {
+    const chat = await this.chatService.getChatById(conversationId, user.id, refId);
+    const companionId = chat.hr_id === user.id ? chat.candidate_id : chat.hr_id;
+    const isOnline = this.chatGateway.isUserOnline(companionId);
+    return { companionId, isOnline };
   }
 
   @Get(':id')

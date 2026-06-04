@@ -233,18 +233,146 @@ export class ChatService {
       .execute();
   }
 
-  async getUserChats(userId: number): Promise<ChatEntity[]> {
-    return this.chatRepo
-      .createQueryBuilder('c')
-      .leftJoinAndSelect(
-        'c.messages',
-        'm',
-        'm.id = (SELECT id FROM messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1)',
-      )
-      .where('c.hr_id = :userId OR c.candidate_id = :userId', { userId })
-      .andWhere('c.status = :status', { status: ChatStatus.ACTIVE })
-      .orderBy('c.last_message_at', 'DESC', 'NULLS LAST')
-      .getMany();
+  async editMessage(
+    messageId: number,
+    userId: number,
+    content: string,
+    refId: string,
+  ): Promise<MessageEntity> {
+    const msg = await this.messageRepo.findOne({ where: { id: messageId } });
+    if (!msg) throw new NotFoundException('Сообщение не найдено');
+    if (msg.sender_id !== userId) {
+      throw new ForbiddenException('Можно редактировать только свои сообщения');
+    }
+    if (msg.is_read) {
+      throw new BadRequestException('Нельзя редактировать прочитанное сообщение');
+    }
+    msg.content = content;
+    return this.messageRepo.save(msg);
+  }
+
+  async deleteMessage(
+    messageId: number,
+    userId: number,
+    refId: string,
+  ): Promise<void> {
+    const msg = await this.messageRepo.findOne({ where: { id: messageId } });
+    if (!msg) throw new NotFoundException('Сообщение не найдено');
+    if (msg.sender_id !== userId) {
+      throw new ForbiddenException('Можно удалять только свои сообщения');
+    }
+    await this.messageRepo.delete(messageId);
+    this.logger.debug(`[SUCCESS] deleteMessage messageId=${messageId}`, refId);
+  }
+
+  async getUserChats(
+    userId: number,
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: any[]; total: number; page: number; totalPages: number }> {
+    const offset = (page - 1) * limit;
+
+    // Получаем чаты с последним сообщением и счётчиком непрочитанных одним запросом
+    const raw = await this.chatRepo.query(
+      `
+      SELECT
+        c.id,
+        c.hr_id,
+        c.candidate_id,
+        c.vacancy_id,
+        c.application_id,
+        c.source,
+        c.status,
+        c.last_message_at,
+        c.created_at,
+        c.updated_at,
+
+        -- Последнее сообщение
+        lm.id          AS last_msg_id,
+        lm.content     AS last_msg_content,
+        lm.sender_id   AS last_msg_sender_id,
+        lm.is_read     AS last_msg_is_read,
+        lm.created_at  AS last_msg_created_at,
+
+        -- Счётчик непрочитанных (только входящие — не от текущего пользователя)
+        COALESCE(unread.cnt, 0)::int AS unread_count,
+
+        -- Собеседник
+        CASE WHEN c.hr_id = $1 THEN c.candidate_id ELSE c.hr_id END AS companion_id,
+        cu."firstName" AS companion_first_name
+
+      FROM chats c
+
+      -- Последнее сообщение
+      LEFT JOIN LATERAL (
+        SELECT id, content, sender_id, is_read, created_at
+        FROM messages
+        WHERE chat_id = c.id
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) lm ON true
+
+      -- Непрочитанные
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS cnt
+        FROM messages
+        WHERE chat_id = c.id
+          AND sender_id != $1
+          AND is_read = false
+      ) unread ON true
+
+      -- Собеседник
+      LEFT JOIN "user" cu
+        ON cu.id = CASE WHEN c.hr_id = $1 THEN c.candidate_id ELSE c.hr_id END
+
+      WHERE (c.hr_id = $1 OR c.candidate_id = $1)
+        AND c.status = 'ACTIVE'
+      ORDER BY c.last_message_at DESC NULLS LAST
+      LIMIT $2 OFFSET $3
+      `,
+      [userId, limit, offset],
+    );
+
+    // Общее количество
+    const [{ count }] = await this.chatRepo.query(
+      `SELECT COUNT(*)::int AS count FROM chats
+       WHERE (hr_id = $1 OR candidate_id = $1) AND status = 'ACTIVE'`,
+      [userId],
+    );
+
+    const data = raw.map((r: any) => ({
+      id: r.id,
+      hr_id: r.hr_id,
+      candidate_id: r.candidate_id,
+      vacancy_id: r.vacancy_id,
+      application_id: r.application_id,
+      source: r.source,
+      status: r.status,
+      last_message_at: r.last_message_at,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      unread_count: Number(r.unread_count),
+      companion: {
+        id: r.companion_id,
+        firstName: r.companion_first_name,
+      },
+      last_message: r.last_msg_id
+        ? {
+            id: r.last_msg_id,
+            content: r.last_msg_content,
+            sender_id: r.last_msg_sender_id,
+            is_read: r.last_msg_is_read,
+            created_at: r.last_msg_created_at,
+          }
+        : null,
+    }));
+
+    return {
+      data,
+      total: Number(count),
+      page,
+      totalPages: Math.ceil(Number(count) / limit),
+    };
   }
 
   async getChatById(

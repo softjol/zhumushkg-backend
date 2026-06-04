@@ -1,4 +1,8 @@
-import { Injectable, Sse } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotificationEntity } from '../database/entitis/notification.entitity';
@@ -13,17 +17,14 @@ export class NotificationService {
     private readonly logger: CustomLogger,
   ) {}
 
-  // Храним подключения юзеров
   private clients = new Map<number, Subject<any>>();
 
-  // Подключить юзера к SSE
   subscribe(userId: number): Subject<any> {
     const subject = new Subject<any>();
     this.clients.set(userId, subject);
     return subject;
   }
 
-  // Отключить юзера
   unsubscribe(userId: number) {
     this.clients.delete(userId);
   }
@@ -39,7 +40,6 @@ export class NotificationService {
       refId,
     );
 
-    // Сохраняем в БД
     try {
       const notification = this.notificationRepository.create({
         userId,
@@ -53,7 +53,6 @@ export class NotificationService {
       this.logger.error(`[ERROR] save notification: ${error}`, refId);
     }
 
-    // Шлём SSE если юзер подключен
     const client = this.clients.get(userId);
     if (client) {
       client.next({ data: { title, body } });
@@ -74,9 +73,18 @@ export class NotificationService {
     }
   }
 
-  async markAsRead(id: number, refId: string) {
+  async markAsRead(id: number, requesterId: number, refId: string) {
     this.logger.debug(`[SERVICE] mark as read id: ${id}`, refId);
     try {
+      const notification = await this.notificationRepository.findOne({
+        where: { id },
+      });
+      if (!notification) {
+        throw new NotFoundException(`Уведомление #${id} не найдено`);
+      }
+      if (notification.userId !== requesterId) {
+        throw new ForbiddenException('Нет доступа к этому уведомлению');
+      }
       await this.notificationRepository.update(id, { isRead: true });
       this.logger.debug(`[SERVICE] mark as read SUCCESS id: ${id}`, refId);
     } catch (error) {
@@ -85,9 +93,18 @@ export class NotificationService {
     }
   }
 
-  async removeNotification(id: number, refId: string) {
+  async removeNotification(id: number, requesterId: number, refId: string) {
     this.logger.debug(`[SERVICE] remove notification id: ${id}`, refId);
     try {
+      const notification = await this.notificationRepository.findOne({
+        where: { id },
+      });
+      if (!notification) {
+        throw new NotFoundException(`Уведомление #${id} не найдено`);
+      }
+      if (notification.userId !== requesterId) {
+        throw new ForbiddenException('Нет доступа к этому уведомлению');
+      }
       await this.notificationRepository.delete(id);
       this.logger.debug(
         `[SERVICE] remove notification SUCCESS id: ${id}`,

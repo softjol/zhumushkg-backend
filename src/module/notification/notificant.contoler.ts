@@ -7,16 +7,21 @@ import {
   ParseIntPipe,
   Sse,
   MessageEvent,
-  Res,
+  UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { NotificationService } from './notificant.service';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { RefId } from '../../decorators/ref.decorator';
+import { CurrentUser } from '../../decorators/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 @ApiTags('Уведомления')
+@ApiBearerAuth('access-token')
+@UseGuards(JwtAuthGuard)
 @Controller('notification')
 export class NotificationController {
   constructor(
@@ -24,28 +29,28 @@ export class NotificationController {
     private readonly logger: CustomLogger,
   ) {}
 
-  // SSE подключение
-  @Sse('stream/:userId')
+  @ApiOperation({ summary: 'SSE — поток уведомлений текущего пользователя' })
+  @Sse('stream')
   stream(
-    @Param('userId', ParseIntPipe) userId: number,
+    @CurrentUser() user: { id: number },
   ): Observable<MessageEvent> {
-    const subject = this.notificationService.subscribe(userId);
+    const subject = this.notificationService.subscribe(user.id);
     return subject.pipe(map((data) => ({ data }) as MessageEvent));
   }
 
-  // Получить все уведомления
-  @Get('my/:userId')
+  @ApiOperation({ summary: 'Получить все уведомления текущего пользователя' })
+  @Get('my')
   async getNotifications(
-    @Param('userId', ParseIntPipe) userId: number,
+    @CurrentUser() user: { id: number },
     @RefId() refId: string,
   ) {
     this.logger.debug(
-      `[CONTROLLER] get notifications userId: ${userId}`,
+      `[CONTROLLER] get notifications userId: ${user.id}`,
       refId,
     );
     try {
       const notifications = await this.notificationService.getNotifications(
-        userId,
+        user.id,
         refId,
       );
       this.logger.debug(`[CONTROLLER] get notifications SUCCESS`, refId);
@@ -59,15 +64,16 @@ export class NotificationController {
     }
   }
 
-  // Пометить как прочитанное
+  @ApiOperation({ summary: 'Пометить уведомление как прочитанное' })
   @Patch(':id/read')
   async markAsRead(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: { id: number },
     @RefId() refId: string,
   ) {
     this.logger.debug(`[CONTROLLER] mark as read id: ${id}`, refId);
     try {
-      await this.notificationService.markAsRead(id, refId);
+      await this.notificationService.markAsRead(id, user.id, refId);
       this.logger.debug(`[CONTROLLER] mark as read SUCCESS`, refId);
       return { success: true };
     } catch (error) {
@@ -76,15 +82,16 @@ export class NotificationController {
     }
   }
 
-  // Удалить уведомление
+  @ApiOperation({ summary: 'Удалить уведомление' })
   @Delete(':id')
   async removeNotification(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: { id: number },
     @RefId() refId: string,
   ) {
     this.logger.debug(`[CONTROLLER] remove notification id: ${id}`, refId);
     try {
-      await this.notificationService.removeNotification(id, refId);
+      await this.notificationService.removeNotification(id, user.id, refId);
       this.logger.debug(`[CONTROLLER] remove notification SUCCESS`, refId);
       return { success: true };
     } catch (error) {

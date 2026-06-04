@@ -3,6 +3,9 @@
 /node_modules
 /build
 
+# WhatsApp session (не коммитить — содержит приватные ключи)
+/whatsapp-session
+
 # Logs
 logs
 *.log

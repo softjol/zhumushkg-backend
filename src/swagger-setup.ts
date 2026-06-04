@@ -7,7 +7,7 @@ const SWAGGER_UI_DIST = 'https://unpkg.com/swagger-ui-dist@5.11.0';
 function openApiServerUrl(): string {
   return (
     process.env.OPENAPI_SERVER_URL?.trim() ||
-    `https://zhumushkg-backend-git-dev-amirbeks-projects-b11ee92a.vercel.app`
+    `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://zhumushkg-backend-git-dev-amirbeks-projects-b11ee92a.vercel.app'}`
   );
 }
 

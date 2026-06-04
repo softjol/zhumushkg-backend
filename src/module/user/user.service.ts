@@ -8,7 +8,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CreateUserDto } from './dto/user.dto';
-import * as bcrypt from 'bcrypt';
 import { CustomLogger } from '../../helpers/logger/logger.service';
 import { UserEntity } from '../database/entitis/user.entity';
 import { RoleEntity } from '../database/entitis/role.entity';
@@ -16,15 +15,14 @@ import { NotificationEntity } from '../database/entitis/notification.entitity';
 import { ResumeResponseEntity } from '../database/entitis/resume-response.entity';
 import { ChatEntity, MessageEntity } from '../database/entitis/chat.entity';
 import { AppUserRole } from '../../common/constants/app-user-role';
-import * as twilio from 'twilio';
-import { TelegramBotService } from '../telegram/telegram-bot.service';
-import { TelegramLinkService } from '../telegram/telegram-link.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { randomInt } from 'crypto';
+
+// Rate-limit для SMS: храним время последней отправки в памяти
+const smsRateLimit = new Map<string, Date>();
 
 @Injectable()
 export class UserService {
-  private twilioClient: any;
-
   constructor(
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
@@ -32,17 +30,8 @@ export class UserService {
     private readonly roleRepository: Repository<RoleEntity>,
     private readonly dataSource: DataSource,
     private readonly logger: CustomLogger,
-    private readonly telegramBotService: TelegramBotService,
-    private readonly telegramLinkService: TelegramLinkService,
-  ) {
-    // Инициализация Twilio клиента
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-
-    if (accountSid && authToken) {
-      this.twilioClient = twilio.default(accountSid, authToken);
-    }
-  }
+    private readonly whatsappService: WhatsappService,
+  ) {}
 
   async findOneByPhoneNumber(phoneNumber: string, refId: string) {
     this.logger.debug(
@@ -54,7 +43,6 @@ export class UserService {
         `[SUCCESS] find one by phoneNumber ${JSON.stringify(phoneNumber)}`,
         refId,
       );
-
       return this.userRepository.findOne({
         where: { phoneNumber },
         relations: ['role'],
@@ -76,7 +64,9 @@ export class UserService {
     this.logger.debug(`[SERVICE] remove user id=${id}`, refId);
 
     if (options?.actingUserId != null && options.actingUserId === id) {
-      throw new BadRequestException('Нельзя удалить собственную учётную запись');
+      throw new BadRequestException(
+        'Нельзя удалить собственную учётную запись',
+      );
     }
 
     const existing = await this.userRepository.findOne({ where: { id } });
@@ -137,10 +127,6 @@ export class UserService {
     }
   }
 
-  /**
-   * Переключение только между соискателем и работодателем.
-   * Роль USER (legacy) считается соискателем.
-   */
   async switchUserRole(
     userId: number,
     targetRole: AppUserRole,
@@ -200,65 +186,17 @@ export class UserService {
     return reloaded;
   }
 
-  async sendConfirmationSMS(
+  async sendConfirmationCode(
     phoneNumber: string,
-    smsCode: string,
+    code: string,
     refId: string,
-  ) {
-    await this.trySendConfirmationTelegram(phoneNumber, smsCode, refId);
-
+  ): Promise<void> {
     try {
-      if (!this.twilioClient) {
-        this.logger.error(
-          'Twilio не настроен. Установите TWILIO_ACCOUNT_SID и TWILIO_AUTH_TOKEN',
-          '',
-        );
-        // В production не логируем OTP-коды.
-        this.logger.warn(
-          `Twilio не настроен. OTP не отправлен для ${phoneNumber}`,
-          refId,
-        );
-        return;
-      }
-
-      await this.twilioClient.messages.create({
-        body: `Ваш код подтверждения: ${smsCode}. Не делитесь этим кодом с никем!`,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: phoneNumber,
-      });
-
-      this.logger.debug(`SMS sent to ${phoneNumber}`, '');
-    } catch (error) {
-      this.logger.error(`Failed to send SMS to ${phoneNumber}: ${error}`, '');
-    }
-  }
-
-  private async trySendConfirmationTelegram(
-    phoneNumber: string,
-    smsCode: string,
-    refId: string,
-  ) {
-    if (!this.telegramBotService.canSendMessages()) {
-      return;
-    }
-    try {
-      const chatId =
-        await this.telegramLinkService.findChatIdByPhone(phoneNumber);
-      if (!chatId) {
-        this.logger.debug(
-          `[Telegram] Нет привязки для ${phoneNumber}, код только SMS/лог`,
-          refId,
-        );
-        return;
-      }
-      await this.telegramBotService.sendOtpCode(chatId, smsCode);
-      this.logger.debug(
-        `[Telegram] Код подтверждения отправлен в чат ${chatId}`,
-        refId,
-      );
+      await this.whatsappService.sendOtp(phoneNumber, code);
+      this.logger.debug(`[WhatsApp] Код отправлен на ${phoneNumber}`, refId);
     } catch (e) {
       this.logger.error(
-        `[Telegram] Не удалось отправить код: ${String(e)}`,
+        `[WhatsApp] Не удалось отправить код на ${phoneNumber}: ${String(e)}`,
         refId,
       );
     }
@@ -270,11 +208,6 @@ export class UserService {
       refId,
     );
     try {
-      this.logger.debug(
-        `[SUCCESS] Creating user with phoneNumber: ${JSON.stringify(userData.phoneNumber)}`,
-        refId,
-      );
-
       await this.ensureAppRoles(refId);
       const targetRole = userData.role ?? AppUserRole.JOB_SEEKER;
       const role = await this.roleRepository.findOne({
@@ -288,7 +221,7 @@ export class UserService {
 
       const smsCode = this.generateSmsCode();
 
-      const user = await this.userRepository.create({
+      const user = this.userRepository.create({
         firstName: userData.firstName,
         phoneNumber: userData.phoneNumber,
         role: role,
@@ -298,7 +231,12 @@ export class UserService {
       });
 
       const savedUser = await this.userRepository.save(user);
-      await this.sendConfirmationSMS(savedUser.phoneNumber, smsCode, refId);
+      await this.sendConfirmationCode(savedUser.phoneNumber, smsCode, refId);
+
+      this.logger.debug(
+        `[SUCCESS] Creating user with phoneNumber: ${JSON.stringify(userData.phoneNumber)}`,
+        refId,
+      );
       return savedUser;
     } catch (error) {
       this.logger.error(
@@ -314,17 +252,15 @@ export class UserService {
       `[SERVICE] find one by id ${JSON.stringify(decoded)}`,
       refId,
     );
-
     try {
-      this.logger.debug(
-        `[SUCCESS] find one by id ${JSON.stringify(decoded)}`,
-        refId,
-      );
       const user = await this.userRepository.findOne({
         where: { id: decoded },
         relations: ['role'],
       });
-
+      this.logger.debug(
+        `[SUCCESS] find one by id ${JSON.stringify(decoded)}`,
+        refId,
+      );
       return user;
     } catch (error) {
       this.logger.error(
@@ -339,7 +275,7 @@ export class UserService {
     this.logger.debug(`[SERVICE] find by SMS code`, refId);
     try {
       return this.userRepository.findOne({
-        where: { smsCode: smsCode },
+        where: { smsCode },
         relations: ['role'],
       });
     } catch (error) {
@@ -372,9 +308,7 @@ export class UserService {
   }
 
   async findByConfirmationToken(smsCode: string) {
-    return this.userRepository.findOne({
-      where: { smsCode: smsCode },
-    });
+    return this.userRepository.findOne({ where: { smsCode } });
   }
 
   async save(user: UserEntity) {
@@ -392,10 +326,20 @@ export class UserService {
         HttpStatus.FORBIDDEN,
       );
     }
+    // Rate-limit: не чаще 1 раза в 60 секунд
+    const lastSent = smsRateLimit.get(phoneNumber);
+    if (lastSent && Date.now() - lastSent.getTime() < 60_000) {
+      const secLeft = Math.ceil((60_000 - (Date.now() - lastSent.getTime())) / 1000);
+      throw new HttpException(
+        `Подождите ${secLeft} сек. перед повторной отправкой`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
     const newCode = this.generateSmsCode();
     user.smsCode = newCode;
+    smsRateLimit.set(phoneNumber, new Date());
     await this.save(user);
-    await this.sendConfirmationSMS(phoneNumber, newCode, refId);
+    await this.sendConfirmationCode(phoneNumber, newCode, refId);
     return newCode;
   }
 

@@ -10,11 +10,10 @@ import { RoleModule } from './module/role/role.module';
 import { ResumeModule } from './module/resume/resume.module';
 import { VacancyModule } from './module/vacancy/vacancy.module';
 import { ApplicationModule } from './module/application/application.module';
-import { TelegramModule } from './module/telegram/telegram.module';
 import { FavoriteModule } from './module/favorite/favorite.module';
-import { JwtAuthGuard } from './module/auth/jwt-auth.guard';
 import { ChatModule } from './module/messages/chat.module';
 import { LandingReviewModule } from './module/landing-review/landing-review.module';
+import { WhatsappModule } from './module/whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -28,7 +27,7 @@ import { LandingReviewModule } from './module/landing-review/landing-review.modu
     ApplicationModule,
     ChatModule,
     LandingReviewModule,
-    TelegramModule,
+    WhatsappModule,
     FavoriteModule,
   ],
   controllers: [AppController],

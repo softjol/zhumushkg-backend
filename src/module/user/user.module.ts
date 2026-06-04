@@ -5,13 +5,13 @@ import { UserService } from './user.service';
 import { UserEntity } from '../database/entitis/user.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RoleEntity } from '../database/entitis/role.entity';
-import { TelegramModule } from '../telegram/telegram.module';
+import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([UserEntity, RoleEntity]),
-    TelegramModule,
+    WhatsappModule,
     JwtModule,
   ],
   controllers: [UserController],
