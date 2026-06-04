@@ -38,11 +38,14 @@ async function bootstrap() {
     credentials: true, // нужен для httpOnly cookie refresh_token
   });
 
-  const document = createSwaggerDocument(app);
-  setupSwaggerDocs(app, document);
+  // Swagger только в dev/staging
+  if (process.env.NODE_ENV !== 'production') {
+    const document = createSwaggerDocument(app);
+    setupSwaggerDocs(app, document);
+  }
 
   await app.listen(PORT, '0.0.0.0', () =>
-    console.log(`Server started ${PORT}`),
+    console.log(`[${process.env.NODE_ENV ?? 'development'}] Server started on port ${PORT}`),
   );
 }
 bootstrap();
