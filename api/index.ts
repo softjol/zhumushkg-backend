@@ -41,10 +41,8 @@ async function createApp() {
     credentials: true,
   });
 
-  if (process.env.NODE_ENV !== 'production') {
-    const document = createSwaggerDocument(app);
-    setupSwaggerDocs(app, document);
-  }
+  const document = createSwaggerDocument(app);
+  setupSwaggerDocs(app, document);
 
   await app.init();
   return app;
