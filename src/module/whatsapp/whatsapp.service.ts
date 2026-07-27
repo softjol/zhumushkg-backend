@@ -102,8 +102,8 @@ export class WhatsappService {
     // Без одобренного шаблона: работает только для тестовых номеров,
     // добавленных в Meta App Dashboard, или внутри 24ч окна диалога.
     const text =
-      `🔐 Ваш код подтверждения на Жумуш.кг:\n\n` +
-      `*${code}*\n\n` +
+      `🔐 Ваш код подтверждения на Zhumushkg.com:\n\n` +
+      `${code}\n\n` +
       `Никому не сообщайте этот код.`;
 
     return this.sendMessage(to, text);
