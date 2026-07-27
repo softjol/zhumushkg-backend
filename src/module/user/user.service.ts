@@ -192,8 +192,13 @@ export class UserService {
     refId: string,
   ): Promise<void> {
     try {
-      await this.whatsappService.sendOtp(phoneNumber, code);
-      this.logger.debug(`[WhatsApp] Код отправлен на ${phoneNumber}`, refId);
+      const sent = await this.whatsappService.sendOtp(phoneNumber, code);
+      this.logger.debug(
+        sent
+          ? `[WhatsApp] Код отправлен на ${phoneNumber}`
+          : `[WhatsApp] Код НЕ отправлен на ${phoneNumber} (сервис не настроен)`,
+        refId,
+      );
     } catch (e) {
       this.logger.error(
         `[WhatsApp] Не удалось отправить код на ${phoneNumber}: ${String(e)}`,

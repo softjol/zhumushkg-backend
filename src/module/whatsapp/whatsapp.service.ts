@@ -20,12 +20,12 @@ export class WhatsappService {
     return !!this.verifyToken && token === this.verifyToken;
   }
 
-  private async post(body: Record<string, unknown>): Promise<void> {
+  private async post(body: Record<string, unknown>): Promise<boolean> {
     if (!this.phoneNumberId || !this.accessToken) {
       this.logger.warn(
         'WHATSAPP_PHONE_NUMBER_ID/WHATSAPP_ACCESS_TOKEN не заданы — сообщение не отправлено',
       );
-      return;
+      return false;
     }
 
     const res = await fetch(this.apiUrl, {
@@ -49,27 +49,31 @@ export class WhatsappService {
     }
 
     this.logger.debug(`[WhatsApp] Ответ: ${JSON.stringify(data)}`);
+    return true;
   }
 
-  async sendMessage(phoneNumber: string, text: string): Promise<void> {
+  async sendMessage(phoneNumber: string, text: string): Promise<boolean> {
     const to = phoneNumber.replace(/\D/g, '');
 
-    await this.post({
+    const sent = await this.post({
       to,
       type: 'text',
       text: { body: text },
     });
 
-    this.logger.log(`📤 WhatsApp → ${phoneNumber}: отправлено`);
+    if (sent) {
+      this.logger.log(`📤 WhatsApp → ${phoneNumber}: отправлено`);
+    }
+    return sent;
   }
 
-  async sendOtp(phoneNumber: string, code: string): Promise<void> {
+  async sendOtp(phoneNumber: string, code: string): Promise<boolean> {
     const to = phoneNumber.replace(/\D/g, '');
 
     // Business-initiated сообщения вне 24-часового окна требуют
     // одобренный Meta шаблон категории "Authentication".
     if (this.otpTemplateName) {
-      await this.post({
+      const sent = await this.post({
         to,
         type: 'template',
         template: {
@@ -89,8 +93,10 @@ export class WhatsappService {
           ],
         },
       });
-      this.logger.log(`📤 WhatsApp OTP (шаблон) → ${phoneNumber}: отправлено`);
-      return;
+      if (sent) {
+        this.logger.log(`📤 WhatsApp OTP (шаблон) → ${phoneNumber}: отправлено`);
+      }
+      return sent;
     }
 
     // Без одобренного шаблона: работает только для тестовых номеров,
@@ -100,6 +106,6 @@ export class WhatsappService {
       `*${code}*\n\n` +
       `Никому не сообщайте этот код.`;
 
-    await this.sendMessage(to, text);
+    return this.sendMessage(to, text);
   }
 }

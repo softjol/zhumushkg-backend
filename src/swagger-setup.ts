@@ -5,10 +5,12 @@ import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 const SWAGGER_UI_DIST = 'https://unpkg.com/swagger-ui-dist@5.11.0';
 
 function openApiServerUrl(): string {
-  return (
-    process.env.OPENAPI_SERVER_URL?.trim() ||
-    `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:8000'}`
-  );
+  const configured = process.env.OPENAPI_SERVER_URL?.trim();
+  const url =
+    configured ||
+    `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:8000'}`;
+
+  return /^https?:\/\//.test(url) ? url : `https://${url}`;
 }
 
 export function buildSwaggerConfig() {
