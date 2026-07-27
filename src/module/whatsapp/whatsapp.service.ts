@@ -1,114 +1,105 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import * as path from 'path';
-
-/** Обёртка для ESM-импорта в CommonJS проекте.
- *  new Function(...) непрозрачен для tsc → не превращается в require(). */
-const esmImport = new Function('pkg', 'return import(pkg)') as (
-  pkg: string,
-) => Promise<any>;
+import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
-export class WhatsappService implements OnModuleInit {
+export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
-  private sock: any = null;
-  private isReady = false;
 
-  async onModuleInit() {
-    await this.connect();
+  private readonly apiVersion = process.env.WHATSAPP_API_VERSION ?? 'v21.0';
+  private readonly phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID ?? '';
+  private readonly accessToken = process.env.WHATSAPP_ACCESS_TOKEN ?? '';
+  private readonly verifyToken = process.env.WHATSAPP_VERIFY_TOKEN ?? '';
+  private readonly otpTemplateName = process.env.WHATSAPP_OTP_TEMPLATE_NAME ?? '';
+  private readonly otpTemplateLang =
+    process.env.WHATSAPP_OTP_TEMPLATE_LANG ?? 'ru';
+
+  private get apiUrl(): string {
+    return `https://graph.facebook.com/${this.apiVersion}/${this.phoneNumberId}/messages`;
   }
 
-  private async connect() {
-    const baileys = await esmImport('@whiskeysockets/baileys');
-    const { default: qrcode } = await esmImport('qrcode-terminal');
-    const { Boom } = await esmImport('@hapi/boom');
-
-    const makeWASocket = baileys.default ?? baileys.makeWASocket ?? baileys;
-    const useMultiFileAuthState = baileys.useMultiFileAuthState;
-    const DisconnectReason = baileys.DisconnectReason;
-
-    const authFolder = path.resolve(process.cwd(), 'whatsapp-session');
-    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
-
-    this.sock = makeWASocket({
-      auth: state,
-      printQRInTerminal: false,
-      logger: {
-        level: 'silent',
-        trace: () => {},
-        debug: () => {},
-        info: () => {},
-        warn: (msg: any) => this.logger.warn(JSON.stringify(msg)),
-        error: (msg: any) => this.logger.error(JSON.stringify(msg)),
-        fatal: (msg: any) => this.logger.error(JSON.stringify(msg)),
-        child: () => ({
-          level: 'silent',
-          trace: () => {},
-          debug: () => {},
-          info: () => {},
-          warn: () => {},
-          error: () => {},
-          fatal: () => {},
-          child: () => ({}) as any,
-        }),
-      } as any,
-    });
-
-    this.sock.ev.on('connection.update', async (update: any) => {
-      const { connection, lastDisconnect, qr } = update;
-
-      if (qr) {
-        this.logger.warn('======= ОТСКАНИРУЙТЕ QR В WHATSAPP =======');
-        qrcode.generate(qr, { small: true });
-        this.logger.warn('===========================================');
-      }
-
-      if (connection === 'open') {
-        this.isReady = true;
-        this.logger.log('✅ WhatsApp подключён');
-      }
-
-      if (connection === 'close') {
-        this.isReady = false;
-        const statusCode = (lastDisconnect?.error as InstanceType<typeof Boom>)
-          ?.output?.statusCode;
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-
-        this.logger.warn(
-          `WhatsApp отключён (код ${statusCode}). Переподключение: ${shouldReconnect}`,
-        );
-
-        if (shouldReconnect) {
-          setTimeout(() => this.connect(), 5000);
-        }
-      }
-    });
-
-    this.sock.ev.on('creds.update', saveCreds);
+  isVerifyTokenValid(token: string): boolean {
+    return !!this.verifyToken && token === this.verifyToken;
   }
 
-  isConnected(): boolean {
-    return this.isReady;
-  }
-
-  async sendMessage(phoneNumber: string, text: string): Promise<void> {
-    if (!this.sock || !this.isReady) {
+  private async post(body: Record<string, unknown>): Promise<void> {
+    if (!this.phoneNumberId || !this.accessToken) {
       this.logger.warn(
-        `WhatsApp не подключён — сообщение на ${phoneNumber} не отправлено`,
+        'WHATSAPP_PHONE_NUMBER_ID/WHATSAPP_ACCESS_TOKEN не заданы — сообщение не отправлено',
       );
       return;
     }
 
-    const jid = phoneNumber.replace(/\D/g, '') + '@s.whatsapp.net';
-    await this.sock.sendMessage(jid, { text });
+    const res = await fetch(this.apiUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ messaging_product: 'whatsapp', ...body }),
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      this.logger.error(
+        `[WhatsApp] Ошибка HTTP ${res.status}: ${JSON.stringify(data)}`,
+      );
+      throw new Error(
+        `WhatsApp API error ${res.status}: ${JSON.stringify(data)}`,
+      );
+    }
+
+    this.logger.debug(`[WhatsApp] Ответ: ${JSON.stringify(data)}`);
+  }
+
+  async sendMessage(phoneNumber: string, text: string): Promise<void> {
+    const to = phoneNumber.replace(/\D/g, '');
+
+    await this.post({
+      to,
+      type: 'text',
+      text: { body: text },
+    });
+
     this.logger.log(`📤 WhatsApp → ${phoneNumber}: отправлено`);
   }
 
   async sendOtp(phoneNumber: string, code: string): Promise<void> {
+    const to = phoneNumber.replace(/\D/g, '');
+
+    // Business-initiated сообщения вне 24-часового окна требуют
+    // одобренный Meta шаблон категории "Authentication".
+    if (this.otpTemplateName) {
+      await this.post({
+        to,
+        type: 'template',
+        template: {
+          name: this.otpTemplateName,
+          language: { code: this.otpTemplateLang },
+          components: [
+            {
+              type: 'body',
+              parameters: [{ type: 'text', text: code }],
+            },
+            {
+              type: 'button',
+              sub_type: 'url',
+              index: '0',
+              parameters: [{ type: 'text', text: code }],
+            },
+          ],
+        },
+      });
+      this.logger.log(`📤 WhatsApp OTP (шаблон) → ${phoneNumber}: отправлено`);
+      return;
+    }
+
+    // Без одобренного шаблона: работает только для тестовых номеров,
+    // добавленных в Meta App Dashboard, или внутри 24ч окна диалога.
     const text =
       `🔐 Ваш код подтверждения на Жумуш.кг:\n\n` +
       `*${code}*\n\n` +
       `Никому не сообщайте этот код.`;
 
-    await this.sendMessage(phoneNumber, text);
+    await this.sendMessage(to, text);
   }
 }

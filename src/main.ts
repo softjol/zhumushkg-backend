@@ -22,7 +22,7 @@ async function bootstrap() {
 
   const allowedOrigins = (
     process.env.ALLOWED_ORIGINS ??
-    'http://localhost:3000,https://zhumushkg-frontend-one.vercel.app,https://zhumushkg-frontend.vercel.app'
+    'http://localhost:3000,https://zhumushkg-frontend-one.vercel.app,https://zhumushkg-frontend.vercel.app,https://zhumushkg-backend-git-dev-amirbeks-projects-b11ee92a.vercel.app'
   )
     .split(',')
     .map((o) => o.trim());
@@ -42,7 +42,9 @@ async function bootstrap() {
   setupSwaggerDocs(app, document);
 
   await app.listen(PORT, '0.0.0.0', () =>
-    console.log(`[${process.env.NODE_ENV ?? 'development'}] Server started on port ${PORT}`),
+    console.log(
+      `[${process.env.NODE_ENV ?? 'development'}] Server started on port ${PORT}`,
+    ),
   );
 }
 bootstrap();

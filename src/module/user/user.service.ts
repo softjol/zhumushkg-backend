@@ -231,6 +231,9 @@ export class UserService {
       });
 
       const savedUser = await this.userRepository.save(user);
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.debug(`[DEV] SMS код для ${savedUser.phoneNumber}: ${smsCode}`, refId);
+      }
       await this.sendConfirmationCode(savedUser.phoneNumber, smsCode, refId);
 
       this.logger.debug(
@@ -339,6 +342,10 @@ export class UserService {
     user.smsCode = newCode;
     smsRateLimit.set(phoneNumber, new Date());
     await this.save(user);
+    // В dev-режиме выводим код в лог для удобства тестирования
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.debug(`[DEV] SMS код для ${phoneNumber}: ${newCode}`, refId);
+    }
     await this.sendConfirmationCode(phoneNumber, newCode, refId);
     return newCode;
   }
